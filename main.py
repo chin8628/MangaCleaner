@@ -1,123 +1,325 @@
+from collections import defaultdict
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
+import math
+import scipy.sparse, scipy.spatial
 
 class MangaCleaner:
-
-    src, src_gray = [], []
-    mag, angle = [], []
-    edges = []
-    swt = []
-    height, width = (0, 0)
-
     def __init__(self, path):
-        self.src = cv2.imread(path)
-        self.src_gray = cv2.cvtColor(self.src, cv2.COLOR_BGR2GRAY)
-        self.height, self.width = self.src.shape[:2]
-        self.swt = np.zeros((self.height, self.width), np.int16)
-
-        # Find Magnitude and gradient angel
-        invert_gray_image = cv2.bitwise_not(self.src_gray)
-        sobel_x = cv2.Sobel(invert_gray_image, cv2.CV_64F, 1, 0)
-        sobel_y = cv2.Sobel(invert_gray_image, cv2.CV_64F, 0, 1)
-        self.mag, self.angle = cv2.cartToPolar(sobel_x, sobel_y, angleInDegrees=1)
+        src = cv2.imread(path)
+        src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
+        height, width = src.shape[:2]
+        swt = np.zeros((height, width), np.int16)
 
         # Find edge
-        self.edges = cv2.Canny(self.src_gray, 150, 240)
+        edges = cv2.Canny(src_gray, 150, 240)
 
-        # print (self.angle[24])
-        # print (self.edges[29])
+        # Find Magnitude and gradient angel
+        invert_gray_image = cv2.bitwise_not(src_gray)
+        sobel_x = cv2.Sobel(invert_gray_image, cv2.CV_64F, 1, 0)
+        sobel_y = cv2.Sobel(invert_gray_image, cv2.CV_64F, 0, 1)
 
-        another_edge = self.stepToEdge(27, 24, self.getDirection(self.angle[24][27]))
-        print ("Another edge {x,y,step_cnt}:", another_edge)
-        print ("My edge angle:", self.angle[24][27])
-        print ("Another edge angle:", self.angle[another_edge['y']][another_edge['x']])
+        mag, angle = cv2.cartToPolar(sobel_x, sobel_y)
 
-        self.getSwt()
+        swt = self.get_swt(edges, sobel_x, sobel_y, angle, mag, height, width)
+        print('# Getting SWT is done.')
+        shapes = self.connect_components(swt)
+        print('# Connect component is done.')
+        swts, heights, widths, topleft_pts, images = self.find_letters(swt, shapes)
+        print('# Finding letters is done.')
+        word_images = self.find_words(swts, heights, widths, topleft_pts, images)
+        print('# Finding words is done.')
+
+        mask = np.zeros(swt.shape, dtype=np.uint8)
+        for word in word_images:
+            mask += word
+
+        result = src.copy()
+
+        im2,contours,hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, 2)
+
+        for contour in contours:
+            (x,y,w,h) = cv2.boundingRect(contour)
+            cv2.rectangle(result, (x,y), (x+w,y+h), (255, 0, 0), 1)
 
         # Display
-        # self.showImg('Contour image', contour_img)
-        self.showImg('SWT image', self.swt)
-        self.showImg('Edge image', self.edges)
-        self.showImg('Source image', self.src)
+        self.showImg('Source image', src)
+        self.showImg('Mask image', mask, 2)
+        self.showImg('Result image', result)
+        cv2.imwrite('result.jpg', cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
 
-    def connect_component(self):
-        # GO SLEEP!
+    def get_swt(self, edges, sobel_x, sobel_y, angle, mag, height, width):
+        swt = np.empty(edges.shape)
+        swt[:] = np.Infinity
 
-    def getSwt(self):
+        step_x_g = sobel_x
+        step_y_g = sobel_y
+
+        np.seterr(divide='ignore', invalid='ignore')
+        grad_x_g = np.divide(step_x_g, mag)
+        grad_y_g = np.divide(step_y_g, mag)
+
         rays = []
-        for curr_y in range(self.height):
-            for curr_x in range(self.width):
-                another_edge = self.stepToEdge(curr_x, curr_y, self.getDirection(self.angle[curr_y][curr_x]))
 
-                if another_edge != -1 and self.angle[curr_y][curr_x] == (self.angle[another_edge['y']][another_edge['x']] + 180 ) % 360 and self.angle[curr_y][curr_x] < 180:
-                    self.swt[curr_y][curr_x] = another_edge['step_cnt']
-                    rays.append((curr_x, curr_y))
+        for y in range(height):
+            for x in range(width):
+                if edges[y][x] != 0:
+                    cur_x, cur_y = x, y
+                    grad_x = grad_x_g[y, x]
+                    grad_y = grad_y_g[y, x]
 
-        median = np.median([self.swt[y][x] for (x, y) in rays])
-        for (x, y) in rays:
-            self.swt[y][x] = min(median, self.swt[y][x])
+                    ray = [{'x': x, 'y': y}]
+                    i = 0
 
-    def showImg(self, title, img):
+                    while True:
+                        i += 1
+                        try:
+                            cur_x = math.floor(x + grad_x * i)
+                            cur_y = math.floor(y + grad_y * i)
+                        except ValueError:
+                            # Catch Nan value
+                            break
+
+                        try:
+                            ray.append({'x': cur_x, 'y': cur_y})
+                            if edges[cur_y][cur_x] != 0:
+                                # Filter value which is out of domain
+                                if (grad_x * -grad_x_g[cur_y, cur_x] + grad_y * -grad_y_g[cur_y, cur_x] >= -1 and
+                                    grad_x * -grad_x_g[cur_y, cur_x] + grad_y * -grad_y_g[cur_y, cur_x] <= 1):
+                                    if math.acos(grad_x * -grad_x_g[cur_y, cur_x] + grad_y * -grad_y_g[cur_y, cur_x]) < np.pi/2.0:
+                                        thickness = math.sqrt( (cur_x - x) * (cur_x - x) + (cur_y - y) * (cur_y - y) )
+                                        rays.append(ray)
+                                        for pos in ray:
+                                            swt[pos['y'], pos['x']] = min(thickness, swt[pos['y'], pos['x']])
+                                break
+                        except IndexError:
+                            break
+        for ray in rays:
+            median = np.median([swt[pos['y'], pos['x']] for pos in ray])
+            for pos in ray:
+                swt[pos['y'], pos['x']] = min(median, swt[pos['y'], pos['x']])
+        return swt
+
+    def showImg(self, title, img, flag=0):
         f, ax = plt.subplots()
         f.canvas.set_window_title(title)
 
-        if (len(str(img[0][0])) != 1 and len(img[0][0]) == 3):
+        if flag == 0:
             ax.imshow(img, interpolation = 'none')
-        else:
+        elif flag == 1:
+            ax.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), interpolation = 'none')
+        elif flag == 2:
             ax.imshow(img, cmap='gray', interpolation = 'none')
 
-    def stepToEdge(self, x, y, direction, step_cnt=0):
-        """ input:
-                direction: [0-7]
-                    0 1 2
-                    7 - 3
-                    6 5 4
-                x: x axis's position
-                y: y axis's position
-            return
-                (x,y) of another edge that function found
-        """
+    def connect_components(self, swt):
+        class Label(object):
+            def __init__(self, value):
+                self.value = value
+                self.parent = self
+                self.rank = 0
+            def __eq__(self, other):
+                if type(other) is type(self):
+                    return self.value == other.value
+                else:
+                    return False
+            def __ne__(self, other):
+                return not self.__eq__(other)
 
-        # Found boundary of image
-        if x == self.width - 1 or y == self.height or x < 0 or y < 0:
-            return -1
+        ld = {}
 
-        add_step_direction = {
-            0 : {'add_x': -1, 'add_y': -1},
-            1 : {'add_x': 0, 'add_y': -1},
-            2 : {'add_x': 1, 'add_y': -1},
-            3 : {'add_x': 1, 'add_y': 0},
-            4 : {'add_x': 1, 'add_y': 1},
-            5 : {'add_x': 0, 'add_y': 1},
-            6 : {'add_x': -1, 'add_y': 1},
-            7 : {'add_x': -1, 'add_y': 0},
-        }
+        def MakeSet(x):
+            try:
+                return ld[x]
+            except KeyError:
+                item = Label(x)
+                ld[x] = item
+                return item
 
-        new_x, new_y = x + add_step_direction[direction]['add_x'], y + add_step_direction[direction]['add_y']
+        def Find(item):
+            if item.parent != item:
+                item.parent = Find(item.parent)
+            return item.parent
 
-        if (x < self.width - 1 and y < self.height - 1 and self.edges[new_y][new_x] == 0):
-            return self.stepToEdge(new_x, new_y, direction, step_cnt + 1)
+        def Union(x, y):
+            """
+            :param x:
+            :param y:
+            :return: root node of new union tree
+            """
+            x_root = Find(x)
+            y_root = Find(y)
+            if x_root == y_root:
+                return x_root
 
-        return {'x': x, 'y': y, 'step_cnt': step_cnt}
+            if x_root.rank < y_root.rank:
+                x_root.parent = y_root
+                return y_root
+            elif x_root.rank > y_root.rank:
+                y_root.parent = x_root
+                return x_root
+            else:
+                y_root.parent = x_root
+                x_root.rank += 1
+                return x_root
 
-    def getDirection(self, angle):
-        if (angle > 337.5 or angle <= 22.5):
-            return 3
-        elif (angle > 22.5 and angle <= 67.5):
-            return 4
-        elif (angle > 67.5 and angle <= 112.5):
-            return 5
-        elif (angle > 112.5 and angle <= 157.5):
-            return 6
-        elif (angle > 157.5 and angle <= 202.5):
-            return 7
-        elif (angle > 202.5 and angle <= 247.5):
-            return 0
-        elif (angle > 247.5 and angle <= 292.5):
-            return 1
-        elif (angle > 292.5 and angle <= 337.5):
-            return 2
+        trees = {}
+        label_map = np.zeros(shape=swt.shape, dtype=np.uint16)
+        next_label = 1
 
-mangaCleaner = MangaCleaner('1.jpg')
+        swt_ratio_threshold = 3.0
+        for y in range(swt.shape[0]):
+            for x in range(swt.shape[1]):
+
+                sw_point = swt[y, x]
+                if sw_point < np.Infinity and sw_point > 0:
+                    neighbors = [(y, x-1),   # west
+                                 (y-1, x-1), # northwest
+                                 (y-1, x),   # north
+                                 (y-1, x+1)] # northeast
+                    connected_neighbors = None
+                    neighborvals = []
+
+                    for neighbor in neighbors:
+                        try:
+                            sw_n = swt[neighbor]
+                            label_n = label_map[neighbor]
+                        except IndexError:
+                            continue
+                        if label_n > 0 and sw_n / sw_point < swt_ratio_threshold and sw_point / sw_n < swt_ratio_threshold:
+                            neighborvals.append(label_n)
+                            if connected_neighbors:
+                                connected_neighbors = Union(connected_neighbors, MakeSet(label_n))
+                            else:
+                                connected_neighbors = MakeSet(label_n)
+
+                    if not connected_neighbors:
+                        trees[next_label] = (MakeSet(next_label))
+                        label_map[y, x] = next_label
+                        next_label += 1
+                    else:
+                        label_map[y, x] = min(neighborvals)
+                        trees[connected_neighbors.value] = Union(trees[connected_neighbors.value], connected_neighbors)
+
+        layers = {}
+        contours = defaultdict(list)
+        for x in range(swt.shape[1]):
+            for y in range(swt.shape[0]):
+                if label_map[y, x] > 0:
+                    item = ld[label_map[y, x]]
+                    common_label = Find(item).value
+                    label_map[y, x] = common_label
+                    contours[common_label].append([x, y])
+                    try:
+                        layer = layers[common_label]
+                    except KeyError:
+                        layers[common_label] = np.zeros(shape=swt.shape, dtype=np.uint16)
+                        layer = layers[common_label]
+
+                    layer[y, x] = 1
+        return layers
+
+    def find_letters(cls, swt, shapes):
+        swts = []
+        heights = []
+        widths = []
+        topleft_pts = []
+        images = []
+
+        for label, layer in shapes.items():
+            (nz_y, nz_x) = np.nonzero(layer)
+            east, west, south, north = max(nz_x), min(nz_x), max(nz_y), min(nz_y)
+            width, height = east - west, south - north
+
+            if height < 10 or height > 300:
+                continue
+
+            diameter = math.sqrt(width * width + height * height)
+            median_swt = np.median(swt[(nz_y, nz_x)])
+            if diameter / median_swt > 10:
+                continue
+
+            # we use log_base_2 so we can do linear distance comparison later using k-d tree
+            # ie, if log2(x) - log2(y) > 1, we know that x > 2*y
+            # Assumption: we've eliminated anything with median_swt == 1
+            swts.append([math.log(median_swt, 2)])
+            heights.append([math.log(height, 2)])
+            topleft_pts.append(np.asarray([north, west]))
+            widths.append(width)
+            images.append(layer)
+
+        return swts, heights, widths, topleft_pts, images
+
+    def find_words(cls, swts, heights, widths, topleft_pts, images):
+
+        swt_tree = scipy.spatial.KDTree(np.asarray(swts))
+        stp = swt_tree.query_pairs(1)
+
+        height_tree = scipy.spatial.KDTree(np.asarray(heights))
+        htp = height_tree.query_pairs(1)
+
+        isect = htp.intersection(stp)
+
+        chains = []
+        pairs = []
+        pair_angles = []
+        for pair in isect:
+            left = pair[0]
+            right = pair[1]
+            widest = max(widths[left], widths[right])
+            distance = np.linalg.norm(topleft_pts[left] - topleft_pts[right])
+            if distance < widest * 3:
+                delta_yx = topleft_pts[left] - topleft_pts[right]
+                angle = np.arctan2(delta_yx[0], delta_yx[1])
+                if angle < 0:
+                    angle += np.pi
+
+                pairs.append(pair)
+                pair_angles.append(np.asarray([angle]))
+
+        angle_tree = scipy.spatial.KDTree(np.asarray(pair_angles))
+        atp = angle_tree.query_pairs(np.pi/12)
+
+        for pair_idx in atp:
+            pair_a = pairs[pair_idx[0]]
+            pair_b = pairs[pair_idx[1]]
+            left_a = pair_a[0]
+            right_a = pair_a[1]
+            left_b = pair_b[0]
+            right_b = pair_b[1]
+
+            added = False
+            for chain in chains:
+                if left_a in chain:
+                    chain.add(right_a)
+                    added = True
+                elif right_a in chain:
+                    chain.add(left_a)
+                    added = True
+
+            if not added:
+                chains.append(set([left_a, right_a]))
+
+            added = False
+            for chain in chains:
+                if left_b in chain:
+                    chain.add(right_b)
+                    added = True
+                elif right_b in chain:
+                    chain.add(left_b)
+                    added = True
+
+            if not added:
+                chains.append(set([left_b, right_b]))
+
+        word_images = []
+        for chain in [c for c in chains if len(c) > 3]:
+            for idx in chain:
+                word_images.append(images[idx])
+
+        return word_images
+
+file = input("Insert file name: ") + '.jpg'
+print('File: ' + file)
+mangaCleaner = MangaCleaner(file)
 plt.show()
