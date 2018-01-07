@@ -43,12 +43,12 @@ class MangaCleaner:
         bounding_points = []
 
         for mask in masks:
-            self.showImg('Mask image', mask, 2)
+            # self.showImg('Mask image', mask, 2)
 
             x_min_pos, x_max_pos = None, None
             y_min_pos, y_max_pos = None, None
 
-            im2, contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL , cv2.CHAIN_APPROX_SIMPLE)
+            im2, contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
             for contour in contours:
                 min_xs = tuple(contour[contour[:,:,0].argmin()][0])[0]
@@ -66,15 +66,14 @@ class MangaCleaner:
                 if y_max_pos == None or max_ys > y_max_pos:
                     y_max_pos = max_ys
 
-            print('x: ', x_min_pos, x_max_pos)
-            print('y: ', y_min_pos, y_max_pos)
-
             bounding_points.append(((x_min_pos, y_min_pos), (x_max_pos, y_max_pos)))
 
         result = src.copy()
 
         for point in bounding_points:
-            cv2.rectangle(result, point[0], point[1], (255, 0, 0), 1)
+            cv2.rectangle(result, point[0], point[1], (0, 0, 255), 1)
+
+        self.floodfill_balloon(src_gray, height, width, bounding_points)
 
         # Display
         # self.showImg('Source image', src)
@@ -84,6 +83,28 @@ class MangaCleaner:
         plt.show()
 
         cv2.imwrite('result.jpg', result)
+
+    def floodfill_balloon(self, img, height, width, bounding_points):
+        th, img_thres = cv2.threshold(img, 220, 255, cv2.THRESH_BINARY_INV);
+        self.showImg('Th image', img_thres, 2)
+
+        cnt = 1
+        for point in bounding_points:
+            mask = np.zeros((height+2, width+2), dtype=np.uint8)
+            x, y = point[0][0] + 1, point[0][1] - 1
+
+            if x < 0 or y < 0 or x >= width or y >= height:
+                continue
+
+            cv2.floodFill(img_thres, mask, (x, y), 255, None, None, cv2.FLOODFILL_MASK_ONLY)
+            mask = mask[1:-1,1:-1]
+            im2, contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            cv2.drawContours(img, contours, -1, (255,255,255), cv2.FILLED)
+
+            # self.showImg('mask' + str(cnt), img_thres, 2)
+            cnt+=1
+
+        self.showImg('Test', img, 2)
 
     def get_swt(self, edges, sobel_x, sobel_y, angle, mag, height, width):
         swt = np.empty(edges.shape)
@@ -303,7 +324,7 @@ class MangaCleaner:
             right = pair[1]
             widest = max(widths[left], widths[right])
             distance = np.linalg.norm(topleft_pts[left] - topleft_pts[right])
-            if distance < widest * 3:
+            if distance < widest * 1.5:
                 delta_yx = topleft_pts[left] - topleft_pts[right]
                 angle = np.arctan2(delta_yx[0], delta_yx[1])
                 if angle < 0:
@@ -348,7 +369,7 @@ class MangaCleaner:
                 chains.append(set([left_b, right_b]))
 
         word_images = []
-        for chain in [c for c in chains if len(c) > 3]:
+        for chain in set([tuple(i) for i in chains]):
             word = []
             for idx in chain:
                 word.append(images[idx])
