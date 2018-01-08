@@ -85,7 +85,7 @@ class MangaCleaner:
         cv2.imwrite('result.jpg', result)
 
     def floodfill_balloon(self, img, height, width, bounding_points):
-        th, img_thres = cv2.threshold(img, 220, 255, cv2.THRESH_BINARY_INV);
+        th, img_thres = cv2.threshold(img, 240, 255, cv2.THRESH_BINARY_INV);
         self.showImg('Th image', img_thres, 2)
 
         cnt = 1
