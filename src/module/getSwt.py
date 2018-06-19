@@ -8,7 +8,9 @@ def get_swt(edges, sobel_x, sobel_y, angle, mag, height, width):
     step_x_g = sobel_x
     step_y_g = sobel_y
 
+    # Ignore error from divide by zero
     np.seterr(divide='ignore', invalid='ignore')
+    
     grad_x_g = np.divide(step_x_g, mag)
     grad_y_g = np.divide(step_y_g, mag)
 
