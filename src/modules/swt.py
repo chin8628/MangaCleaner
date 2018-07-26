@@ -1,13 +1,18 @@
-def swt(swt):
+def swt(edges, sobel_x, sobel_y, direction, mag, height, width):
     rays = []
-    swt = np.full(EDGES.shape, np.Infinity)
+    swt = np.full(edges.shape, np.Infinity)
+
+    # Ignore error from divide by zero
+    np.seterr(divide='ignore', invalid='ignore')
+
+    step_x_g, step_y_g = sobel_x, sobel_y
 
     gradient_x_init = np.divide(step_x_g, MAGNITUDE)
     gradient_y_init = np.divide(step_y_g, MAGNITUDE)
 
-    for y in range(HEIGHT):
-        for x in range(WIDTH):
-            if EDGES[y][x] != 0:
+    for y in range(height):
+        for x in range(width):
+            if edges[y][x] != 0:
                 cur_x, cur_y = x, y
                 gradient_x, gradient_y = gradient_x_init, gradient_y_init
 
@@ -25,10 +30,10 @@ def swt(swt):
 
                     try:
                         ray.append({'x': cur_x, 'y': cur_y})
-                        if EDGES[cur_y][cur_x] != 0:
-                            gradient_value = gradient_x * -GRADIENT_X_GLOBAL[cur_y, cur_x] + gradient_y * -GRADIENT_Y_GLOBAL[cur_y, cur_x]
+                        if edges[cur_y][cur_x] != 0:
+                            gradient_value = gradient_x * -gradient_x_init[cur_y, cur_x] + gradient_y * -gradient_y_init[cur_y, cur_x]
                             
-                            if abs(abs(round(np.degrees(DIRECTION[y, x])) - round(np.degrees(DIRECTION[cur_y, cur_x]))) - 180) < 90:
+                            if abs(abs(round(np.degrees(direction[y, x])) - round(np.degrees(direction[cur_y, cur_x]))) - 180) < 90:
                                 thickness = math.sqrt( (cur_x - x) * (cur_x - x) + (cur_y - y) * (cur_y - y) )
                                 rays.append(ray)
 
