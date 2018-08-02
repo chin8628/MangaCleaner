@@ -2,7 +2,8 @@ import json
 import logging
 
 
-def save(file_name: str, swts: list, heights: list, widths: list, topleft_pts: list, is_texts: list):
+def save(file_name: str, swts: list, heights: list, widths: list, topleft_pts: list, is_texts: list,
+         percent_hists: list):
     logger = logging.getLogger(__name__)
     data = []
 
@@ -16,7 +17,8 @@ def save(file_name: str, swts: list, heights: list, widths: list, topleft_pts: l
                 'x': topleft_pts[index][1].item(),
                 'y': topleft_pts[index][0].item()
             },
-            'is_text': 1 if is_texts[index] else 0
+            'is_text': 1 if is_texts[index] else 0,
+            'percent_hist': percent_hists[index]
         })
 
     logger.info('Saving...')

@@ -9,6 +9,9 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
 # Modules
+from tqdm import tqdm
+
+from modules.label_rect import label
 from text_detection import text_detection
 from modules.manga109_annotation import Manga109Annotation
 from modules.file_manager import save, load_dataset
@@ -19,7 +22,7 @@ class Main:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
-    def save_labeled_data(self, path, labeld_file):
+    def save_labeled_data(self, path, labeled_file):
         # expected_height = 1200
         annotation_path = '../../Dataset_Manga/Manga109/annotations/GOOD_KISS_Ver2.xml'
 
@@ -38,20 +41,12 @@ class Main:
 
         src = cv2.imread(path)
 
-        # if src.shape[0] > int(expected_height):
-        #     src = cv2.resize(
-        #         cv2.imread(path),
-        #         None,
-        #         fx=expected_height / src.shape[0],
-        #         fy=expected_height / src.shape[0]
-        #     )
-
         manga109 = Manga109Annotation(annotation_path, 6)
         manga109_text_area_list = manga109.get_text_area_list()
 
         swt_values_list = []
         heights_list, widths_list, diameters_list, hw_ratio_list = [], [], [], []
-        topleft_pts_list = []
+        topleft_pts_list, percent_hist_list = [], []
         is_text_list = []
 
         margin = 5
@@ -71,21 +66,18 @@ class Main:
                 heights_list.append(heights[index])
                 widths_list.append(widths[index])
                 diameters_list.append(diameters[index])
-                topleft_pts_list.append(
-                    (
-                        topleft_pts[index][0] + topleft_pt[0] - margin,
-                        topleft_pts[index][1] + topleft_pt[1] - margin
-                    )
-                )
-                is_text_list.append(True)
                 hw_ratio_list.append(hw_ratio[index])
+                is_text_list.append(True)
+                topleft_pts_list.append((
+                    topleft_pts[index][0] + topleft_pt[0] - margin,
+                    topleft_pts[index][1] + topleft_pt[1] - margin
+                ))
 
         data = text_detection(src, src.shape[0])
         swt_values, heights, widths, diameters, topleft_pts, letter_images, hw_ratio = data
 
         for index in range(0, len(swt_values)):
             is_existed = False
-
             for index_2 in range(0, len(swt_values_list)):
                 if swt_values_list[index_2] == swt_values[index] and heights_list[index_2] == heights[index] and \
                         widths_list[index_2] == widths[index] and topleft_pts_list[index_2] == topleft_pts[index]:
@@ -103,14 +95,27 @@ class Main:
             is_text_list.append(False)
             hw_ratio_list.append(hw_ratio[index])
 
-        save(labeld_file, swt_values_list, heights_list, widths_list, topleft_pts_list, is_text_list)
+        self.logger.info('The histogram is calculating...')
+        for index in tqdm(range(0, len(swt_values_list))):
+            img = src[
+                  topleft_pts_list[index][0]:topleft_pts_list[index][0] + heights_list[index],
+                  topleft_pts_list[index][1]:topleft_pts_list[index][1] + widths_list[index]
+                  ].copy()
+
+            flatten_img = list(img.ravel())
+            hist = [flatten_img.count(i) for i in range(0, 256)]
+            sum_hist = sum(hist)
+            percent_hist_list.append([round(i / sum_hist, 4) for i in hist])
+
+        save(labeled_file, swt_values_list, heights_list, widths_list, topleft_pts_list, is_text_list,
+             percent_hist_list)
 
     def plot_from_files(self, *paths):
         swts, widths, heights, diameters, hw_ratios, is_texts = [], [], [], [], [], []
 
         for path in paths:
             self.logger.info('%s is Loading...', path)
-            data = load(path)
+            data = load_dataset(path)
 
             for datum in data:
                 swts.append(datum['swt'])
@@ -125,8 +130,8 @@ class Main:
 
         fig = plt.figure()
         ax = Axes3D(fig)
-        ax.scatter(swts[is_texts == False], diameters[is_texts == False], hw_ratios[is_texts == False], s=4)
-        ax.scatter(swts[is_texts == True], diameters[is_texts == True], hw_ratios[is_texts == True], s=4)
+        ax.scatter(swts[is_texts == 0], diameters[is_texts == 0], hw_ratios[is_texts == 0], s=4)
+        ax.scatter(swts[is_texts == 1], diameters[is_texts == 1], hw_ratios[is_texts == 1], s=4)
         ax.set_xlabel('swt')
         ax.set_ylabel('diameter')
         ax.set_zlabel('h/w ratio')
