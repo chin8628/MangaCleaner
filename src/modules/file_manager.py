@@ -24,7 +24,7 @@ def save(file_name: str, swts: list, heights: list, widths: list, topleft_pts: l
         json.dump(data, fp)
 
 
-def load(file_name: str) -> dict:
+def load_dataset(file_name: str) -> dict:
     """
     :param file_name: data.json etc...
     :return: list(dict(swt, height, width, topleft_pt, is_text))

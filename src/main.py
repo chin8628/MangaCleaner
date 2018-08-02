@@ -11,7 +11,7 @@ from mpl_toolkits.mplot3d import Axes3D
 # Modules
 from text_detection import text_detection
 from modules.manga109_annotation import Manga109Annotation
-from modules.file_manager import save, load
+from modules.file_manager import save, load_dataset
 
 
 class Main:
@@ -132,6 +132,18 @@ class Main:
         ax.set_zlabel('h/w ratio')
         plt.show()
 
+    @staticmethod
+    def draw_rect(img_path, dataset_path):
+        data = load_dataset(dataset_path)
+
+        widths, heights, topleft_pts = [], [], []
+        for datum in data:
+            topleft_pts.append((datum['topleft_pt']['y'], datum['topleft_pt']['x']))
+            widths.append(datum['width'])
+            heights.append(datum['height'])
+
+        src = cv2.imread(img_path)
+        label(src, topleft_pts, heights, widths)
 
 if __name__ == '__main__':
     fire.Fire(Main)
