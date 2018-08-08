@@ -10,15 +10,15 @@ def save(file_name: str, swts: list, heights: list, widths: list, topleft_pts: l
     logger.info('Preparing data for saving...')
     for index in range(0, len(swts)):
         data.append({
-            'swt': swts[index].item(),
-            'height': heights[index].item(),
-            'width': widths[index].item(),
+            'swt': float(swts[index]),
+            'height': int(heights[index]),
+            'width': int(widths[index]),
             'topleft_pt': {
-                'x': topleft_pts[index][1].item(),
-                'y': topleft_pts[index][0].item()
+                'x': int(topleft_pts[index][1]),
+                'y': int(topleft_pts[index][0])
             },
             'is_text': 1 if is_texts[index] else 0,
-            'percent_hist': percent_hists[index]
+            'percent_hist': [float(i) for i in percent_hists[index]]
         })
 
     logger.info('Saving...')

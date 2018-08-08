@@ -1,6 +1,7 @@
 import logging
 import math
 from pathlib import Path
+from multiprocessing import Process, Manager
 
 import cv2
 import fire
@@ -15,6 +16,8 @@ from modules.label_rect import label
 from text_detection import text_detection
 from modules.manga109_annotation import Manga109Annotation
 from modules.file_manager import save, load_dataset
+from modules.training import train
+from modules.utils import histogram_calculate_parallel
 
 
 class Main:
@@ -44,12 +47,9 @@ class Main:
         manga109 = Manga109Annotation(annotation_path, 6)
         manga109_text_area_list = manga109.get_text_area_list()
 
-        swt_values_list = []
-        heights_list, widths_list, diameters_list, hw_ratio_list = [], [], [], []
-        topleft_pts_list, percent_hist_list = [], []
-        is_text_list = []
-
         margin = 5
+        word_list = []
+
         for text_area in manga109_text_area_list:
 
             topleft_pt, bottomright_pt = text_area[0], text_area[1]
@@ -58,57 +58,54 @@ class Main:
                   topleft_pt[1] - margin:bottomright_pt[1] + margin
                   ]
 
-            data = text_detection(roi, roi.shape[0])
-            swt_values, heights, widths, diameters, topleft_pts, letter_images, hw_ratio = data
+            for word in text_detection(roi, roi.shape[0]):
+                word['is_text'] = True
+                word['topleft_pt'] = (topleft_pt[0] - margin, topleft_pt[1] - margin)
+                word_list += [word]
 
-            for index in range(0, len(swt_values)):
-                swt_values_list.append(swt_values[index])
-                heights_list.append(heights[index])
-                widths_list.append(widths[index])
-                diameters_list.append(diameters[index])
-                hw_ratio_list.append(hw_ratio[index])
-                is_text_list.append(True)
-                topleft_pts_list.append((
-                    topleft_pts[index][0] + topleft_pt[0] - margin,
-                    topleft_pts[index][1] + topleft_pt[1] - margin
-                ))
-
-        data = text_detection(src, src.shape[0])
-        swt_values, heights, widths, diameters, topleft_pts, letter_images, hw_ratio = data
-
-        for index in range(0, len(swt_values)):
-            is_existed = False
-            for index_2 in range(0, len(swt_values_list)):
-                if swt_values_list[index_2] == swt_values[index] and heights_list[index_2] == heights[index] and \
-                        widths_list[index_2] == widths[index] and topleft_pts_list[index_2] == topleft_pts[index]:
-                    is_existed = True
-                    break
-
-            if is_existed:
-                continue
-
-            swt_values_list.append(swt_values[index])
-            heights_list.append(heights[index])
-            widths_list.append(widths[index])
-            diameters_list.append(diameters[index])
-            topleft_pts_list.append(topleft_pts[index])
-            is_text_list.append(False)
-            hw_ratio_list.append(hw_ratio[index])
+        for word in filter(lambda x: x not in word_list, text_detection(src, src.shape[0])):
+            word['is_text'] = False
+            word_list.append(word.copy())
 
         self.logger.info('The histogram is calculating...')
-        for index in tqdm(range(0, len(swt_values_list))):
-            img = src[
-                  topleft_pts_list[index][0]:topleft_pts_list[index][0] + heights_list[index],
-                  topleft_pts_list[index][1]:topleft_pts_list[index][1] + widths_list[index]
-                  ].copy()
 
-            flatten_img = list(img.ravel())
-            hist = [flatten_img.count(i) for i in range(0, 256)]
-            sum_hist = sum(hist)
-            percent_hist_list.append([round(i / sum_hist, 4) for i in hist])
+        processes = []
+        hist_block = []
+        process_number = 4
+        len_word_list = math.floor(len(word_list) / process_number)
 
-        save(labeled_file, swt_values_list, heights_list, widths_list, topleft_pts_list, is_text_list,
-             percent_hist_list)
+        with Manager() as manager:
+            for idx in range(0, process_number):
+                hist = manager.list()
+                process = Process(
+                    target=histogram_calculate_parallel,
+                    args=(src, word_list[len_word_list * idx: len_word_list * (idx + 1)], hist)
+                )
+                process.start()
+                processes.append(process)
+                hist_block.append(hist)
+
+            for process in processes:
+                process.join()
+
+            index = 0
+            for hist_list in hist_block:
+                for hist in list(hist_list):
+                    word = word_list[index]
+                    word['hist'] = hist.copy()
+
+                    index += 1
+
+        swts, heights, widths, topleft_pts, is_texts, hists = [], [], [], [], [], []
+        for word in word_list:
+            swts.append(word['swt'])
+            heights.append(word['height'])
+            widths.append(word['width'])
+            topleft_pts.append(word['topleft_pt'])
+            is_texts.append(word['is_text'])
+            hists.append(word['hist'])
+
+        save(labeled_file, swts, heights, widths, topleft_pts, is_texts, hists)
 
     def plot_from_files(self, *paths):
         swts, widths, heights, diameters, hw_ratios, is_texts = [], [], [], [], [], []
@@ -149,6 +146,28 @@ class Main:
 
         src = cv2.imread(img_path)
         label(src, topleft_pts, heights, widths)
+
+    def svm(self):
+        # data = load_dataset('../007.json')
+        data = load_dataset('../output/006_words.json')
+
+        self.logger.info('Data is preparing...')
+        x, y = [], []
+        x_test, y_test = [], []
+        for datum in tqdm(data):
+            diameter = math.sqrt(datum['width'] * datum['width'] + datum['height'] * datum['height'])
+            feature = datum['percent_hist'] + [datum['height'] / datum['width'], datum['swt'], diameter]
+            x.append(feature)
+            y.append(datum['is_text'])
+
+        for datum in tqdm(data):
+            diameter = math.sqrt(datum['width'] * datum['width'] + datum['height'] * datum['height'])
+            feature = datum['percent_hist'] + [datum['height'] / datum['width'], datum['swt'], diameter]
+            x_test.append(feature)
+            y_test.append(datum['is_text'])
+
+        train(x, y, x_test, y_test)
+
 
 if __name__ == '__main__':
     fire.Fire(Main)
