@@ -8,8 +8,13 @@ from tqdm import tqdm
 def get_letters(swt: np.ndarray, connected_components: dict):
     swt_values, heights, widths, diameters, topleft_pts = [], [], [], [], []
 
+    cnt = 0
+
     for label, layer in tqdm(connected_components.items()):
-        nz_y, nz_x = np.nonzero(layer)
+        # if cnt >= 100:
+        #     break
+
+        nz_y, nz_x = layer.nonzero()
         east, west, south, north = max(nz_x), min(nz_x), max(nz_y), min(nz_y)
         width, height = east - west, south - north
 
@@ -27,6 +32,8 @@ def get_letters(swt: np.ndarray, connected_components: dict):
         topleft_pts.append((north, west))
         widths.append(width)
         diameters.append(diameter)
+
+        cnt += 1
 
     logging.getLogger(__name__).info('Finished.')
 

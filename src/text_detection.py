@@ -29,6 +29,7 @@ def text_detection(src: np.ndarray, expected_height: int = 1200) -> List[dict]:
     swt = get_swt(edges, sobel_x, sobel_y, direction, magnitude, height, width)
     connected_components, label_map = get_connected_components(swt)
     swt_values, heights, widths, diameters, topleft_pts = get_letters(swt, connected_components)
+
     words = get_words(swt_values, heights, widths, topleft_pts)
 
     return words

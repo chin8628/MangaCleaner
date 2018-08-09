@@ -1,21 +1,22 @@
+import itertools
 import logging
 from typing import Dict, List
 
 import numpy as np
+from tqdm import tqdm
 
 
 def histogram_calculate_parallel(src: np.ndarray, words: Dict, hist_send_back: List) -> None:
-    height, width, channel = src.shape
-    flatten_img = src.ravel()
+    height, width = src.shape
+    flatten_img = list(itertools.chain.from_iterable(src))
 
-    for word in words:
+    for word in tqdm(words):
         y_start, y_stop = word['topleft_pt'][0], word['topleft_pt'][0] + word['height']
         x_start, x_stop = word['topleft_pt'][1], word['topleft_pt'][1] + word['width']
-        selected = []
-        for y in range(y_start, y_stop):
-            selected += list(flatten_img[(y * width) + x_start:(y * width) + x_stop])
+        selected = map(lambda y: flatten_img[(y * width) + x_start:(y * width) + x_stop], range(y_start, y_stop))
 
-        hist = [selected.count(i) for i in range(0, 256)]
-        sum_hist = sum(hist)
+        hist = np.zeros(256).astype(np.uint8)
+        for i in selected:
+            hist[i] += 1
 
-        hist_send_back.append([round(i / sum_hist, 4) for i in hist])
+        hist_send_back.append(list(hist))

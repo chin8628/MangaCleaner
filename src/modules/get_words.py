@@ -1,19 +1,23 @@
 import logging
+from typing import List, Tuple
 
 import scipy.sparse
 import scipy.spatial
 import numpy as np
 
 
-def get_words(swts, heights, widths, topleft_pts):
-    swts = np.asarray([[i] for i in swts])
-    heights = np.asarray([[i] for i in heights])
-    topleft_pts = np.array(topleft_pts)
+def get_words(swts: List[int], heights: List[int], widths: List[int], topleft_pts: Tuple[int, int]):
+    swts_array = np.asarray([[i] for i in swts])
+    heights_array = np.asarray([[i] for i in heights])
+    topleft_pts_array = np.array(topleft_pts)
 
-    swt_tree = scipy.spatial.KDTree(swts)
+    if len(swts_array) == 0 or len(heights_array) == 0 or len(topleft_pts_array) == 0:
+        return []
+
+    swt_tree = scipy.spatial.KDTree(swts_array)
     stp = swt_tree.query_pairs(3)
 
-    height_tree = scipy.spatial.KDTree(heights)
+    height_tree = scipy.spatial.KDTree(heights_array)
     htp = set(height_tree.query_pairs(3))
 
     isect = htp.intersection(stp)
@@ -28,9 +32,9 @@ def get_words(swts, heights, widths, topleft_pts):
         left = pair[0]
         right = pair[1]
         widest = max(widths[left], widths[right])
-        distance = np.linalg.norm(topleft_pts[left] - topleft_pts[right])
+        distance = np.linalg.norm(topleft_pts_array[left] - topleft_pts_array[right])
         if distance < widest * 2:
-            delta_yx = topleft_pts[left] - topleft_pts[right]
+            delta_yx = topleft_pts_array[left] - topleft_pts_array[right]
             angle = np.arctan2(delta_yx[0], delta_yx[1])
             if angle < 0:
                 angle += np.pi
@@ -90,6 +94,8 @@ def get_words(swts, heights, widths, topleft_pts):
             west_word = min(west_word, west)
             south_word = max(south_word, south)
             north_word = min(north_word, north)
+
+            word_swts.append(swts[idx])
 
         width, height = east_word - west_word, south_word - north_word
 
