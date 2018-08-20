@@ -100,8 +100,7 @@ def get_connected_components(swt: np.ndarray):
             try:
                 layer = layers[common_label]
             except KeyError:
-                layers[common_label] = np.zeros(
-                    shape=swt.shape, dtype=np.uint16)
+                layers[common_label] = np.zeros(shape=swt.shape, dtype=np.uint16)
                 layer = layers[common_label]
 
             layer[y, x] = 1

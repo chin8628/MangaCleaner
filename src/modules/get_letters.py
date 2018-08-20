@@ -4,6 +4,7 @@ import math
 import numpy as np
 from tqdm import tqdm
 
+import cv2
 
 def get_letters(swt: np.ndarray, connected_components: dict):
     swt_values, heights, widths, diameters, topleft_pts = [], [], [], [], []
@@ -18,11 +19,11 @@ def get_letters(swt: np.ndarray, connected_components: dict):
         east, west, south, north = max(nz_x), min(nz_x), max(nz_y), min(nz_y)
         width, height = east - west, south - north
 
-        diameter = math.sqrt(width * width + height * height)
-        median_swt = np.median(swt[(nz_y, nz_x)])
-
         if (height <= 5 or height >= 300) and (width <= 5 or width >= 300):
             continue
+
+        diameter = math.sqrt(width * width + height * height)
+        median_swt = np.median(swt[(nz_y, nz_x)])
 
         if diameter / median_swt <= 1 or diameter / median_swt > 20:
             continue

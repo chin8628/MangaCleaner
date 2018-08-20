@@ -27,10 +27,11 @@ class Main:
 
     def save_labeled_data(self, page, path, labeled_file):
         # expected_height = 1200
-        annotation_path = '../../Dataset_Manga/Manga109/annotations/GOOD_KISS_Ver2.xml'
+        annotation_path = '../../Dataset_Manga/Manga109/annotations/AisazuNihaIrarenai.xml'
 
         self.logger.info('Annotation path: %s', path)
-        self.logger.info('Absolute annotation path: %s', Path(annotation_path).resolve())
+        self.logger.info('Absolute annotation path: %s',
+                         Path(annotation_path).resolve())
 
         image_file = Path(str(path))
         acceptable_types = ['.jpg', '.JPG', '.jpeg', '.JPEG']
@@ -50,7 +51,7 @@ class Main:
         manga109 = Manga109Annotation(annotation_path, page)
         manga109_text_area_list = manga109.get_text_area_list()
 
-        margin = 10
+        margin = 3
         word_list = []
         fast_check_existing = {}
 
@@ -62,11 +63,9 @@ class Main:
                   topleft_pt[1] - margin:bottomright_pt[1] + margin
                   ]
 
-            cv2.imshow('test', roi)
-            cv2.waitKey(0)
-
             for word in text_detection(roi, roi.shape[0]):
-                key = '{}{}{}'.format(word['width'], word['height'], word['topleft_pt'][0], word['topleft_pt'][1])
+                key = '{}{}{}'.format(
+                    word['width'], word['height'], word['topleft_pt'][0], word['topleft_pt'][1])
                 if fast_check_existing.get(key, -1) != -1:
                     continue
                 fast_check_existing[key] = 1
@@ -75,7 +74,8 @@ class Main:
                 word_list.append(word)
 
         for word in text_detection(src, src.shape[0]):
-            key = '{}{}{}'.format(word['width'], word['height'], word['topleft_pt'][0], word['topleft_pt'][1])
+            key = '{}{}{}'.format(
+                word['width'], word['height'], word['topleft_pt'][0], word['topleft_pt'][1])
             if fast_check_existing.get(key, -1) != -1:
                 continue
             fast_check_existing[key] = 1
@@ -94,7 +94,8 @@ class Main:
                 hist = manager.list()
                 process = Process(
                     target=histogram_calculate_parallel,
-                    args=(src_gray, word_list[len_word_list * idx: len_word_list * (idx + 1)], hist)
+                    args=(
+                        src_gray, word_list[len_word_list * idx: len_word_list * (idx + 1)], hist)
                 )
                 process.start()
                 processes.append(process)
@@ -122,6 +123,8 @@ class Main:
 
         save(labeled_file, swts, heights, widths, topleft_pts, is_texts, hists)
 
+        return 0
+
     def plot_from_files(self, *paths):
         swts, widths, heights, diameters, hw_ratios, is_texts = [], [], [], [], [], []
 
@@ -133,17 +136,21 @@ class Main:
                 swts.append(datum['swt'])
                 widths.append(datum['width'])
                 heights.append(datum['height'])
-                diameters.append(math.sqrt(datum['width'] * datum['width'] + datum['height'] * datum['height']))
+                diameters.append(
+                    math.sqrt(datum['width'] * datum['width'] + datum['height'] * datum['height']))
                 hw_ratios.append(datum['height'] / datum['width'])
                 is_texts.append(datum['is_text'])
 
-        swts, widths, heights, diameters, = np.array(swts), np.array(widths), np.array(heights), np.array(diameters)
+        swts, widths, heights, diameters, = np.array(swts), np.array(
+            widths), np.array(heights), np.array(diameters)
         hw_ratios, is_texts = np.array(hw_ratios), np.array(is_texts)
 
         fig = plt.figure()
         ax = Axes3D(fig)
-        ax.scatter(swts[is_texts == 0], diameters[is_texts == 0], hw_ratios[is_texts == 0], s=4)
-        ax.scatter(swts[is_texts == 1], diameters[is_texts == 1], hw_ratios[is_texts == 1], s=4)
+        ax.scatter(swts[is_texts == 0], diameters[is_texts == 0],
+                   hw_ratios[is_texts == 0], s=4)
+        ax.scatter(swts[is_texts == 1], diameters[is_texts == 1],
+                   hw_ratios[is_texts == 1], s=4)
         ax.set_xlabel('swt')
         ax.set_ylabel('diameter')
         ax.set_zlabel('h/w ratio')
@@ -156,7 +163,8 @@ class Main:
 
         widths, heights, topleft_pts = [], [], []
         for datum in list(filter(lambda x: x['is_text'] == 0, data)):
-            topleft_pts.append((datum['topleft_pt']['y'], datum['topleft_pt']['x']))
+            topleft_pts.append(
+                (datum['topleft_pt']['y'], datum['topleft_pt']['x']))
             widths.append(datum['width'])
             heights.append(datum['height'])
 
@@ -164,70 +172,49 @@ class Main:
 
         widths, heights, topleft_pts = [], [], []
         for datum in list(filter(lambda x: x['is_text'] == 1, data)):
-            topleft_pts.append((datum['topleft_pt']['y'], datum['topleft_pt']['x']))
+            topleft_pts.append(
+                (datum['topleft_pt']['y'], datum['topleft_pt']['x']))
             widths.append(datum['width'])
             heights.append(datum['height'])
 
         label(src, topleft_pts, heights, widths, (255, 0, 0))
 
     def svm(self):
-        data1 = load_dataset('../output/006_words.json')
-        data2 = load_dataset('../output/007_words.json')
-        data3 = load_dataset('../output/008_words.json')
-        data4 = load_dataset('../output/009_words.json')
-        data5 = load_dataset('../output/010_words.json')
+        data = list()
 
-        print('count data: {}'.format(len(data1) + len(data2) + len(data3) + len(data4)))
+        data.append(load_dataset('../output/Aisazu-023.json'))
+        data.append(load_dataset('../output/Aisazu-026.json'))
+        data.append(load_dataset('../output/Aisazu-035.json'))
+        data.append(load_dataset('../output/Aisazu-006.json'))
+        data.append(load_dataset('../output/Aisazu-014.json'))
+
+        print('count data: {}'.format(sum([len(i) for i in data])))
 
         self.logger.info('Data is preparing...')
-        x1, y1 = [], []
-        x2, y2 = [], []
-        x3, y3 = [], []
-        x4, y4 = [], []
+        trains = [
+            {'x': [], 'y': []},
+            {'x': [], 'y': []},
+            {'x': [], 'y': []},
+            {'x': [], 'y': []}
+        ]
+
+        for dataIdx in range(4):
+            for datum in data[dataIdx]:
+                diameter = math.sqrt(datum['width'] * datum['width'] + datum['height'] * datum['height'])
+                feature = datum['percent_hist'] + [datum['swt']] + [diameter]
+                trains[dataIdx]['x'].append(feature)
+                trains[dataIdx]['y'].append(datum['is_text'])
+
+        y, x = [], []
+        for idx in range(4):
+            len_y_true = sum(trains[idx]['y'])
+            x += trains[idx]['x'][:len_y_true * 2]
+            y += trains[idx]['y'][:len_y_true * 2]
 
         x_test, y_test = [], []
-        for datum in tqdm(data1):
+        for datum in tqdm(data[4]):
             diameter = math.sqrt(datum['width'] * datum['width'] + datum['height'] * datum['height'])
-            feature = datum['percent_hist'] + [datum['height'] / datum['width'], datum['swt'], diameter]
-            x1.append(feature)
-            y1.append(datum['is_text'])
-
-        for datum in tqdm(data2):
-            diameter = math.sqrt(datum['width'] * datum['width'] + datum['height'] * datum['height'])
-            feature = datum['percent_hist'] + [datum['height'] / datum['width'], datum['swt'], diameter]
-            x2.append(feature)
-            y2.append(datum['is_text'])
-
-        for datum in tqdm(data3):
-            diameter = math.sqrt(datum['width'] * datum['width'] + datum['height'] * datum['height'])
-            feature = datum['percent_hist'] + [datum['height'] / datum['width'], datum['swt'], diameter]
-            x3.append(feature)
-            y3.append(datum['is_text'])
-
-        for datum in tqdm(data4):
-            diameter = math.sqrt(datum['width'] * datum['width'] + datum['height'] * datum['height'])
-            feature = datum['percent_hist'] + [datum['height'] / datum['width'], datum['swt'], diameter]
-            x4.append(feature)
-            y4.append(datum['is_text'])
-
-        len_y_true_1 = sum(y1)
-        x1, y1 = x1[:len_y_true_1 * 2], y1[:len_y_true_1 * 2]
-
-        len_y_true_2 = sum(y2)
-        x2, y2 = x2[:len_y_true_2 * 2], y2[:len_y_true_2 * 2]
-
-        len_y_true_3 = sum(y3)
-        x3, y3 = x3[:len_y_true_3 * 2], y3[:len_y_true_3 * 2]
-
-        len_y_true_4 = sum(y4)
-        x4, y4 = x4[:len_y_true_4 * 2], y4[:len_y_true_4 * 2]
-
-        x = x1 + x2 + x3 + x4
-        y = y1 + y2 + y3 + y4
-
-        for datum in tqdm(data5):
-            diameter = math.sqrt(datum['width'] * datum['width'] + datum['height'] * datum['height'])
-            feature = datum['percent_hist'] + [datum['height'] / datum['width'], datum['swt'], diameter]
+            feature = datum['percent_hist'] + [datum['swt']] + [diameter]
             x_test.append(feature)
             y_test.append(datum['is_text'])
 

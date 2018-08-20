@@ -15,10 +15,10 @@ def get_words(swts: List[int], heights: List[int], widths: List[int], topleft_pt
         return []
 
     swt_tree = scipy.spatial.KDTree(swts_array)
-    stp = swt_tree.query_pairs(3)
+    stp = swt_tree.query_pairs(4)
 
     height_tree = scipy.spatial.KDTree(heights_array)
-    htp = set(height_tree.query_pairs(3))
+    htp = set(height_tree.query_pairs(4))
 
     isect = htp.intersection(stp)
 
@@ -26,63 +26,26 @@ def get_words(swts: List[int], heights: List[int], widths: List[int], topleft_pt
         return []
 
     chains = []
-    pairs = []
-    pair_angles = []
-    for pair in isect:
-        left = pair[0]
-        right = pair[1]
-        widest = max(widths[left], widths[right])
-        distance = np.linalg.norm(topleft_pts_array[left] - topleft_pts_array[right])
-        if distance < widest * 2:
-            delta_yx = topleft_pts_array[left] - topleft_pts_array[right]
-            angle = np.arctan2(delta_yx[0], delta_yx[1])
-            if angle < 0:
-                angle += np.pi
-
-            pairs.append(pair)
-            pair_angles.append(np.asarray([angle]))
-
-    if len(pair_angles) == 0:
-        return []
-
-    angle_tree = scipy.spatial.KDTree(np.asarray(pair_angles))
-    atp = angle_tree.query_pairs(np.pi / 12)
-
-    for pair_idx in atp:
-        pair_a = pairs[pair_idx[0]]
-        pair_b = pairs[pair_idx[1]]
-        left_a = pair_a[0]
-        right_a = pair_a[1]
-        left_b = pair_b[0]
-        right_b = pair_b[1]
+    for idx1, idx2 in isect:
+        widest = max(widths[idx1], widths[idx2])
+        distance = np.linalg.norm(topleft_pts_array[idx1] - topleft_pts_array[idx2])
+        if distance >= widest * 2.5:
+            continue
 
         added = False
         for chain in chains:
-            if left_a in chain:
-                chain.add(right_a)
+            if idx1 not in chain and idx2 in chain:
+                chain.append(idx1)
                 added = True
-            elif right_a in chain:
-                chain.add(left_a)
-                added = True
-
-        if not added:
-            chains.append({left_a, right_a})
-
-        added = False
-        for chain in chains:
-            if left_b in chain:
-                chain.add(right_b)
-                added = True
-            elif right_b in chain:
-                chain.add(left_b)
+            elif idx1 in chain and idx2 not in chain:
+                chain.append(idx2)
                 added = True
 
         if not added:
-            chains.append({left_b, right_b})
+            chains.append([idx1, idx2])
 
     words = []
-
-    for chain in set([tuple(i) for i in chains]):
+    for chain in chains:
         word_swts = []
         east_word, west_word, south_word, north_word = 0, np.inf, 0, np.inf
 
