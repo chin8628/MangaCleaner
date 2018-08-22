@@ -2,7 +2,7 @@ from sklearn import svm
 from sklearn import preprocessing
 
 
-def train(x, y, x_test, y_test):
+def train(x, y, x_test):
     clf = svm.SVC()
 
     scalar = preprocessing.StandardScaler().fit(x)

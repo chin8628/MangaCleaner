@@ -2,9 +2,10 @@ import cv2
 
 from modules.file_manager import load_dataset, save_by_dict
 
-img = cv2.imread(
-    '../../Dataset_Manga/Manga109/images/AisazuNihaIrarenai/035.jpg')
-data = load_dataset('../output/Aisazu-035.json')
+img = cv2.imread('../../Dataset_Manga/Manga109/images/AppareKappore/005.jpg')
+
+filename = 'Appare-005.json'
+data = load_dataset('../output/raw/' + filename)
 
 verified_no_text_data = []
 cnt = 0
@@ -34,4 +35,4 @@ for datum in filter(lambda x: x['is_text'] == 0, data):
         pass
 
 data = list(filter(lambda x: x['is_text'] == 1, data)) + verified_no_text_data
-save_by_dict('../output/verified/{}'.format('Aisazu-035.json'), data)
+save_by_dict('../output/verified/{}'.format(filename), data)

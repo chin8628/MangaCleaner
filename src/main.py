@@ -20,6 +20,7 @@ from modules.training import train
 from modules.utils import histogram_calculate_parallel
 
 from main_command.svm import svm as svm_command
+from main_command.draw_rect import draw_rect as draw_rect_command
 
 
 class Main:
@@ -27,9 +28,8 @@ class Main:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
-    def save_labeled_data(self, page, path, labeled_file):
+    def save_labeled_data(self, page, path, labeled_file, annotation_path):
         # expected_height = 1200
-        annotation_path = '../../Dataset_Manga/Manga109/annotations/AisazuNihaIrarenai.xml'
 
         self.logger.info('Annotation path: %s', path)
         self.logger.info('Absolute annotation path: %s',
@@ -76,8 +76,7 @@ class Main:
                 word_list.append(word)
 
         for word in text_detection(src, src.shape[0]):
-            key = '{}{}{}'.format(
-                word['width'], word['height'], word['topleft_pt'][0], word['topleft_pt'][1])
+            key = '{}{}{}'.format(word['width'], word['height'], word['topleft_pt'][0], word['topleft_pt'][1])
             if fast_check_existing.get(key, -1) != -1:
                 continue
             fast_check_existing[key] = 1
@@ -159,28 +158,67 @@ class Main:
 
     @staticmethod
     def draw_rect(img_path, dataset_path):
-        data = load_dataset(dataset_path)
-        src = cv2.imread(img_path)
-
-        # widths, heights, topleft_pts = [], [], []
-        # for datum in list(filter(lambda x: x['is_text'] == 0, data)):
-        #     topleft_pts.append(
-        #         (datum['topleft_pt']['y'], datum['topleft_pt']['x']))
-        #     widths.append(datum['width'])
-        #     heights.append(datum['height'])
-
-        # label(src, topleft_pts, heights, widths, (0, 0, 255))
-
-        widths, heights, topleft_pts = [], [], []
-        for datum in list(filter(lambda x: x['is_text'] == 1, data)):
-            topleft_pts.append((datum['topleft_pt']['y'], datum['topleft_pt']['x']))
-            widths.append(datum['width'])
-            heights.append(datum['height'])
-
-        label(src, topleft_pts, heights, widths, (255, 0, 0))
+        draw_rect_command(img_path, dataset_path)
 
     def svm(self):
         svm_command()
+
+    def pure_label(self, path, labeled_file):
+        image_file = Path(str(path))
+        acceptable_types = ['.jpg', '.JPG', '.jpeg', '.JPEG']
+
+        self.logger.info('Input path: %s', path)
+        self.logger.info('Absolute path: %s', image_file.resolve())
+
+        if not image_file.is_file() or image_file.suffix not in acceptable_types:
+            self.logger.error('File is not in %s types.', acceptable_types)
+            quit()
+
+        src = cv2.imread(path)
+        src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
+
+        word_list = text_detection(src, src.shape[0])
+
+        self.logger.info('The histogram is calculating...')
+
+        processes = []
+        hist_block = []
+        process_number = 3
+        len_word_list = math.ceil(len(word_list) / process_number)
+
+        with Manager() as manager:
+            for idx in range(0, process_number):
+                hist = manager.list()
+                process = Process(
+                    target=histogram_calculate_parallel,
+                    args=(
+                        src_gray, word_list[len_word_list * idx: len_word_list * (idx + 1)], hist)
+                )
+                process.start()
+                processes.append(process)
+                hist_block.append(hist)
+
+            for process in processes:
+                process.join()
+
+            index = 0
+            for hist_list in hist_block:
+                for hist in list(hist_list):
+                    word = word_list[index]
+                    word['hist'] = hist.copy()
+
+                    index += 1
+
+        swts, heights, widths, topleft_pts, is_texts, hists = [], [], [], [], [], []
+        for word in word_list:
+            swts.append(word['swt'])
+            heights.append(word['height'])
+            widths.append(word['width'])
+            topleft_pts.append(word['topleft_pt'])
+            is_texts.append(-1)
+            hists.append(word['hist'])
+
+        save(labeled_file, swts, heights, widths, topleft_pts, is_texts, hists)
 
 
 if __name__ == '__main__':

@@ -14,50 +14,45 @@ def svm():
         '../output/verified/Aisazu-014.json',
         '../output/verified/Aisazu-023.json',
         '../output/verified/Aisazu-026.json',
-    ]
-
-    dataset_filenames_test = [
         '../output/verified/Aisazu-035.json',
     ]
 
+    dataset_filenames_test = [
+        '../output/raw/AppareKappore-005.json'
+    ]
+
     img_filenames_test = [
-        '../../Dataset_Manga/Manga109/images/AisazuNihaIrarenai/035.jpg',
+        '../../Dataset_Manga/Manga109/images/AppareKappore/005.jpg',
     ]
 
     data = [load_dataset(i) for i in dataset_filenames]
     data_test = [load_dataset(i) for i in dataset_filenames_test]
 
-    annotation_path = '../../Dataset_Manga/Manga109/annotations/AisazuNihaIrarenai.xml'
-    page_number = [35]
-
-    trains = [
-        {'x': [], 'y': []},
-        {'x': [], 'y': []},
-        {'x': [], 'y': []},
-        {'x': [], 'y': []}
-    ]
+    annotation_path = '../../Dataset_Manga/Manga109/annotations/AppareKappore.xml'
+    page_number = [5]
 
     y, x = [], []
     for idx in range(len(dataset_filenames)):
+        x_uncut, y_uncut = [], []
+
         for datum in data[idx]:
             feature = datum['hist'] + [datum['swt']]
-            trains[idx]['x'].append(feature)
-            trains[idx]['y'].append(datum['is_text'])
+            x_uncut.append(feature)
+            y_uncut.append(datum['is_text'])
 
-        len_y_true = sum(trains[idx]['y'])
-        x += trains[idx]['x'][:len_y_true * 2]
-        y += trains[idx]['y'][:len_y_true * 2]
+        count_true = sum(filter(lambda y: y == 1, y_uncut))
+        x += x_uncut[:count_true * 2]
+        y += y_uncut[:count_true * 2]
 
     print('count data: {}'.format(len(y)))
 
-    x_test, y_test = [], []
+    x_test = []
     for idx in range(len(dataset_filenames_test)):
-        for datum in data[idx]:
+        for datum in data_test[idx]:
             feature = datum['hist'] + [datum['swt']]
             x_test.append(feature)
-            y_test.append(datum['is_text'])
 
-    result = train(x, y, x_test, y_test)
+    result = train(x, y, x_test)
 
     for idx in range(0, len(dataset_filenames_test)):
         img = cv2.imread(img_filenames_test[idx], 0)
@@ -73,11 +68,14 @@ def svm():
             ]
             sub_height, sub_width = sub_area_img.shape
 
+            # predict_data['is_text'] = int(result[index])
+            # predicted_output.append(predict_data)
+
             if result[index] == 0:
                 predict_data['is_text'] = int(result[index])
                 predicted_output.append(predict_data)
             else:
-                ret, thresh = cv2.threshold(sub_area_img, 230, 255, cv2.THRESH_BINARY)
+                ret, thresh = cv2.threshold(sub_area_img, 200, 255, cv2.THRESH_BINARY)
 
                 if sum(sum(thresh == 255)) / (sub_height*sub_width) > 0.4:
                     predicted_output.append(predict_data)
@@ -113,6 +111,9 @@ def svm():
         print('TP: {} FP: {} TN: {} FN: {}'.format(tp, fp, tn, fn))
 
         try:
-            print('P: {} R: {}'.format(round(tp / (tp + fp), 4), round(tp / (tp + fn), 4)))
+            precision = round(tp / (tp + fp), 4)
+            recall = round(tp / (tp + fn), 4)
+            print('P: {} R: {}'.format(precision, recall))
+            print('F-measure: {}'.format(round(2 * ((precision * recall) / (precision + recall)), 4)))
         except ZeroDivisionError:
             print('Divided by zero')
