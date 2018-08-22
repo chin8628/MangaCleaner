@@ -15,7 +15,7 @@ from tqdm import tqdm
 from modules.label_rect import label
 from text_detection import text_detection
 from modules.manga109_annotation import Manga109Annotation
-from modules.file_manager import save, load_dataset
+from modules.file_manager import save, load_dataset, save_by_dict
 from modules.training import train
 from modules.utils import histogram_calculate_parallel
 
@@ -59,9 +59,9 @@ class Main:
 
             topleft_pt, bottomright_pt = text_area[0], text_area[1]
             roi = src[
-                  topleft_pt[0] - margin:bottomright_pt[0] + margin,
-                  topleft_pt[1] - margin:bottomright_pt[1] + margin
-                  ]
+                topleft_pt[0] - margin:bottomright_pt[0] + margin,
+                topleft_pt[1] - margin:bottomright_pt[1] + margin
+            ]
 
             for word in text_detection(roi, roi.shape[0]):
                 key = '{}{}{}'.format(
@@ -161,14 +161,14 @@ class Main:
         data = load_dataset(dataset_path)
         src = cv2.imread(img_path)
 
-        widths, heights, topleft_pts = [], [], []
-        for datum in list(filter(lambda x: x['is_text'] == 0, data)):
-            topleft_pts.append(
-                (datum['topleft_pt']['y'], datum['topleft_pt']['x']))
-            widths.append(datum['width'])
-            heights.append(datum['height'])
+        # widths, heights, topleft_pts = [], [], []
+        # for datum in list(filter(lambda x: x['is_text'] == 0, data)):
+        #     topleft_pts.append(
+        #         (datum['topleft_pt']['y'], datum['topleft_pt']['x']))
+        #     widths.append(datum['width'])
+        #     heights.append(datum['height'])
 
-        label(src, topleft_pts, heights, widths, (0, 0, 255))
+        # label(src, topleft_pts, heights, widths, (0, 0, 255))
 
         widths, heights, topleft_pts = [], [], []
         for datum in list(filter(lambda x: x['is_text'] == 1, data)):
@@ -182,13 +182,11 @@ class Main:
     def svm(self):
         data = list()
 
-        data.append(load_dataset('../output/Aisazu-023.json'))
-        data.append(load_dataset('../output/Aisazu-026.json'))
-        data.append(load_dataset('../output/Aisazu-035.json'))
-        data.append(load_dataset('../output/Aisazu-006.json'))
-        data.append(load_dataset('../output/Aisazu-014.json'))
-
-        print('count data: {}'.format(sum([len(i) for i in data])))
+        data.append(load_dataset('../output/verified/Aisazu-006.json'))
+        data.append(load_dataset('../output/verified/Aisazu-014.json'))
+        data.append(load_dataset('../output/verified/Aisazu-023.json'))
+        data.append(load_dataset('../output/verified/Aisazu-026.json'))
+        data.append(load_dataset('../output/verified/Aisazu-035.json'))
 
         self.logger.info('Data is preparing...')
         trains = [
@@ -200,8 +198,9 @@ class Main:
 
         for dataIdx in range(4):
             for datum in data[dataIdx]:
-                diameter = math.sqrt(datum['width'] * datum['width'] + datum['height'] * datum['height'])
-                feature = datum['percent_hist'] + [datum['swt']] + [diameter]
+                diameter = math.sqrt(
+                    datum['width'] * datum['width'] + datum['height'] * datum['height'])
+                feature = datum['hist'] + [datum['swt']]
                 trains[dataIdx]['x'].append(feature)
                 trains[dataIdx]['y'].append(datum['is_text'])
 
@@ -211,14 +210,25 @@ class Main:
             x += trains[idx]['x'][:len_y_true * 2]
             y += trains[idx]['y'][:len_y_true * 2]
 
+        print('count data: {}'.format(len(y)))
+
         x_test, y_test = [], []
         for datum in tqdm(data[4]):
-            diameter = math.sqrt(datum['width'] * datum['width'] + datum['height'] * datum['height'])
-            feature = datum['percent_hist'] + [datum['swt']] + [diameter]
+            diameter = math.sqrt(
+                datum['width'] * datum['width'] + datum['height'] * datum['height'])
+            feature = datum['hist'] + [datum['swt']]
             x_test.append(feature)
             y_test.append(datum['is_text'])
 
-        train(x, y, x_test, y_test)
+        result = train(x, y, x_test, y_test)
+
+        predicted_output = []
+        for index in range(0, len(data[4])):
+            predict_data = data[4][index].copy()
+            predict_data['is_text'] = int(result[index])
+            predicted_output.append(predict_data)
+
+        save_by_dict('../output/predicted/Aisazu-035.json', predicted_output)
 
 
 if __name__ == '__main__':
