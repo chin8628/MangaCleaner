@@ -86,7 +86,9 @@ def svm():
                     predict_data['is_text'] = int(result[index])
                     predicted_output.append(predict_data)
 
-        save_by_dict('../output/predicted/{}'.format(img_filenames_test[idx].split('/')), predicted_output)
+        manga_name = img_filenames_test[idx].split('/')[-2]
+        output_filename = img_filenames_test[idx].split('/')[-1].split('.')[0]
+        save_by_dict('../output/predicted/{}-{}.json'.format(manga_name, output_filename), predicted_output)
 
         manga109_text_area_list = Manga109Annotation(annotation_path, page_number[idx]).get_text_area_list()
 
