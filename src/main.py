@@ -19,6 +19,8 @@ from modules.file_manager import save, load_dataset, save_by_dict
 from modules.training import train
 from modules.utils import histogram_calculate_parallel
 
+from main_command.svm import svm as svm_command
+
 
 class Main:
     def __init__(self):
@@ -141,8 +143,7 @@ class Main:
                 hw_ratios.append(datum['height'] / datum['width'])
                 is_texts.append(datum['is_text'])
 
-        swts, widths, heights, diameters, = np.array(swts), np.array(
-            widths), np.array(heights), np.array(diameters)
+        swts, widths, heights, diameters, = np.array(swts), np.array(widths), np.array(heights), np.array(diameters)
         hw_ratios, is_texts = np.array(hw_ratios), np.array(is_texts)
 
         fig = plt.figure()
@@ -172,63 +173,14 @@ class Main:
 
         widths, heights, topleft_pts = [], [], []
         for datum in list(filter(lambda x: x['is_text'] == 1, data)):
-            topleft_pts.append(
-                (datum['topleft_pt']['y'], datum['topleft_pt']['x']))
+            topleft_pts.append((datum['topleft_pt']['y'], datum['topleft_pt']['x']))
             widths.append(datum['width'])
             heights.append(datum['height'])
 
         label(src, topleft_pts, heights, widths, (255, 0, 0))
 
     def svm(self):
-        data = list()
-
-        data.append(load_dataset('../output/verified/Aisazu-006.json'))
-        data.append(load_dataset('../output/verified/Aisazu-014.json'))
-        data.append(load_dataset('../output/verified/Aisazu-023.json'))
-        data.append(load_dataset('../output/verified/Aisazu-026.json'))
-        data.append(load_dataset('../output/verified/Aisazu-035.json'))
-
-        self.logger.info('Data is preparing...')
-        trains = [
-            {'x': [], 'y': []},
-            {'x': [], 'y': []},
-            {'x': [], 'y': []},
-            {'x': [], 'y': []}
-        ]
-
-        for dataIdx in range(4):
-            for datum in data[dataIdx]:
-                diameter = math.sqrt(
-                    datum['width'] * datum['width'] + datum['height'] * datum['height'])
-                feature = datum['hist'] + [datum['swt']]
-                trains[dataIdx]['x'].append(feature)
-                trains[dataIdx]['y'].append(datum['is_text'])
-
-        y, x = [], []
-        for idx in range(4):
-            len_y_true = sum(trains[idx]['y'])
-            x += trains[idx]['x'][:len_y_true * 2]
-            y += trains[idx]['y'][:len_y_true * 2]
-
-        print('count data: {}'.format(len(y)))
-
-        x_test, y_test = [], []
-        for datum in tqdm(data[4]):
-            diameter = math.sqrt(
-                datum['width'] * datum['width'] + datum['height'] * datum['height'])
-            feature = datum['hist'] + [datum['swt']]
-            x_test.append(feature)
-            y_test.append(datum['is_text'])
-
-        result = train(x, y, x_test, y_test)
-
-        predicted_output = []
-        for index in range(0, len(data[4])):
-            predict_data = data[4][index].copy()
-            predict_data['is_text'] = int(result[index])
-            predicted_output.append(predict_data)
-
-        save_by_dict('../output/predicted/Aisazu-035.json', predicted_output)
+        svm_command()
 
 
 if __name__ == '__main__':
