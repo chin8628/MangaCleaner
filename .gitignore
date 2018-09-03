@@ -107,3 +107,5 @@ ENV/
 output/
 
 output_hist/
+
+log/

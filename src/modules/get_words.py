@@ -29,7 +29,7 @@ def get_words(swts: List[int], heights: List[int], widths: List[int], topleft_pt
     for idx1, idx2 in isect:
         widest = max(widths[idx1], widths[idx2])
         distance = np.linalg.norm(topleft_pts_array[idx1] - topleft_pts_array[idx2])
-        if distance >= widest * 2.5:
+        if distance >= widest * 2:
             continue
 
         added = False

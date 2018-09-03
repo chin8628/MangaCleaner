@@ -2,6 +2,8 @@ import logging
 import math
 from pathlib import Path
 from multiprocessing import Process, Manager
+import os
+import sys
 
 import cv2
 import fire
@@ -21,6 +23,9 @@ from modules.utils import histogram_calculate_parallel
 
 from main_command.svm import svm as svm_command
 from main_command.draw_rect import draw_rect as draw_rect_command
+from main_command.extract_for_text import extract_for_text as extract_for_text_command
+
+sys.setrecursionlimit(10000)
 
 
 class Main:
@@ -127,33 +132,45 @@ class Main:
         return 0
 
     def plot_from_files(self, *paths):
-        swts, widths, heights, diameters, hw_ratios, is_texts = [], [], [], [], [], []
-
+        hists, is_texts = [], []
         for path in paths:
             self.logger.info('%s is Loading...', path)
             data = load_dataset(path)
 
             for datum in data:
-                swts.append(datum['swt'])
-                widths.append(datum['width'])
-                heights.append(datum['height'])
-                diameters.append(
-                    math.sqrt(datum['width'] * datum['width'] + datum['height'] * datum['height']))
-                hw_ratios.append(datum['height'] / datum['width'])
+                hists.append(datum['hist'])
                 is_texts.append(datum['is_text'])
 
-        swts, widths, heights, diameters, = np.array(swts), np.array(widths), np.array(heights), np.array(diameters)
-        hw_ratios, is_texts = np.array(hw_ratios), np.array(is_texts)
+        hists, is_texts = np.array(hists), np.array(is_texts)
+
+        skew_not_text, skew_text = [], []
+
+        for a in hists[is_texts == 0]:
+            p = [i / (datum['width'] * datum['height']) for i in a]
+            q = math.sqrt(sum([(i - 127.5)**2 * p[i] for i in range(0, 256)]))
+            skew_not_text.append((q**(-3)) * sum([(i - 127.5)**3 * p[i] for i in range(0, 256)]))
+
+        for a in hists[is_texts == 1]:
+            p = [i / (datum['width'] * datum['height']) for i in a]
+            q = math.sqrt(sum([(i - 127.5)**2 * p[i] for i in range(0, 256)]))
+            skew_text.append((q**(-3)) * sum([(i - 127.5)**3 * p[i] for i in range(0, 256)]))
 
         fig = plt.figure()
         ax = Axes3D(fig)
-        ax.scatter(swts[is_texts == 0], diameters[is_texts == 0],
-                   hw_ratios[is_texts == 0], s=4)
-        ax.scatter(swts[is_texts == 1], diameters[is_texts == 1],
-                   hw_ratios[is_texts == 1], s=4)
-        ax.set_xlabel('swt')
-        ax.set_ylabel('diameter')
-        ax.set_zlabel('h/w ratio')
+        ax.scatter(
+            skew_not_text,
+            # [np.mean(i) for i in hists[is_texts == 0]],
+            [np.std(i) for i in hists[is_texts == 0]],
+            [sum(i[200:256]) / (datum['width'] * datum['height']) for i in hists[is_texts == 0]],
+            s=4
+        )
+        ax.scatter(
+            skew_text,
+            # [np.mean(i) for i in hists[is_texts == 1]],
+            [np.std(i) for i in hists[is_texts == 1]],
+            [sum(i[200:256]) / (datum['width'] * datum['height']) for i in hists[is_texts == 1]],
+            s=4
+        )
         plt.show()
 
     @staticmethod
@@ -163,62 +180,36 @@ class Main:
     def svm(self):
         svm_command()
 
-    def pure_label(self, path, labeled_file):
-        image_file = Path(str(path))
-        acceptable_types = ['.jpg', '.JPG', '.jpeg', '.JPEG']
+    def extract_for_test(self):
+        imagedir_dataset_path = '../../Dataset_Manga/Manga109/images/'
+        # test_images_path = open('./filename_test.txt', 'r').read().split('\n')
+        test_images_path = ['AisazuNihaIrarenai/034.jpg']
+        test_json = ['.'.join(i.replace('-', '/').split('.')[0:-1]) for i in os.listdir('../output/test/')]
+        failed_log = ['.'.join(i.replace('-', '/').split('.')[0:-1]) for i in os.listdir('../log/')]
 
-        self.logger.info('Input path: %s', path)
-        self.logger.info('Absolute path: %s', image_file.resolve())
+        for path in test_images_path:
+            if path in test_json:
+                self.logger.info('Already extracted >> {}'.format(imagedir_dataset_path + path))
+                continue
+            elif path in failed_log:
+                self.logger.info('Already failed >> {}'.format(imagedir_dataset_path + path))
+                continue
 
-        if not image_file.is_file() or image_file.suffix not in acceptable_types:
-            self.logger.error('File is not in %s types.', acceptable_types)
-            quit()
-
-        src = cv2.imread(path)
-        src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
-
-        word_list = text_detection(src, src.shape[0])
-
-        self.logger.info('The histogram is calculating...')
-
-        processes = []
-        hist_block = []
-        process_number = 3
-        len_word_list = math.ceil(len(word_list) / process_number)
-
-        with Manager() as manager:
-            for idx in range(0, process_number):
-                hist = manager.list()
-                process = Process(
-                    target=histogram_calculate_parallel,
-                    args=(
-                        src_gray, word_list[len_word_list * idx: len_word_list * (idx + 1)], hist)
+            self.logger.info('extracting >> {}'.format(imagedir_dataset_path + path))
+            try:
+                extract_for_text_command(
+                    imagedir_dataset_path + path,
+                    '../output/test/' + path.replace('/', '-') + '.json'
                 )
-                process.start()
-                processes.append(process)
-                hist_block.append(hist)
-
-            for process in processes:
-                process.join()
-
-            index = 0
-            for hist_list in hist_block:
-                for hist in list(hist_list):
-                    word = word_list[index]
-                    word['hist'] = hist.copy()
-
-                    index += 1
-
-        swts, heights, widths, topleft_pts, is_texts, hists = [], [], [], [], [], []
-        for word in word_list:
-            swts.append(word['swt'])
-            heights.append(word['height'])
-            widths.append(word['width'])
-            topleft_pts.append(word['topleft_pt'])
-            is_texts.append(-1)
-            hists.append(word['hist'])
-
-        save(labeled_file, swts, heights, widths, topleft_pts, is_texts, hists)
+            except KeyboardInterrupt:
+                file = open('../log/{}.txt'.format(path.replace('/', '-')), 'w')
+                file.close()
+                quit()
+            except Exception as e:
+                file = open('../log/{}.txt'.format(path.replace('/', '-')), 'w')
+                file.write(str(e))
+                self.logger.exception(e)
+                file.close()
 
 
 if __name__ == '__main__':
