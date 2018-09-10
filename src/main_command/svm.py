@@ -7,6 +7,8 @@ from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
 
+from sklearn import svm, preprocessing
+
 from modules.training import train
 from modules.file_manager import load_dataset, save_by_dict
 from modules.manga109_annotation import Manga109Annotation
@@ -33,93 +35,112 @@ def preparing_feature(datum):
     return new_hist + [skew, g_mean, np.std(data['hist']), entropy, energy]
 
 
-def svm():
+def train():
     dataset_filenames = [
-        '../output/verified/Aisazu-006.json',
-        '../output/verified/Aisazu-014.json',
-        '../output/verified/Aisazu-023.json',
-        '../output/verified/Aisazu-026.json',
-        '../output/verified/Aisazu-035.json',
+        '../output/train/AosugiruHaru-005.json',
+        '../output/train/AosugiruHaru-008.json',
+        '../output/train/AosugiruHaru-015.json',
+        '../output/train/AosugiruHaru-018.json',
+        '../output/train/AosugiruHaru-079.json',
+        '../output/train/Arisa-013.json',
+        '../output/train/Arisa-025.json',
+        '../output/train/Arisa-026.json',
+        '../output/train/Arisa-040.json',
+        '../output/train/Arisa-041.json',
+        '../output/train/BakuretsuKungFuGirl-012.json',
+        '../output/train/BakuretsuKungFuGirl-013.json',
+        '../output/train/BakuretsuKungFuGirl-016.json',
+        '../output/train/BakuretsuKungFuGirl-017.json',
+        '../output/train/BakuretsuKungFuGirl-021.json',
+        '../output/train/DollGun-007.json',
+        '../output/train/DollGun-008.json',
+        '../output/train/DollGun-010.json',
+        '../output/train/DollGun-017.json',
+        '../output/train/DollGun-026.json',
+        '../output/train/DollGun-027.json',
+        '../output/train/DollGun-028.json',
+        '../output/train/EvaLady-009.json',
+        '../output/train/EvaLady-011.json',
+        '../output/train/EvaLady-016.json',
+        '../output/train/EvaLady-027.json',
+        '../output/train/EvaLady-043.json',
+        '../output/train/LoveHina_vol01-005.json',
+        '../output/train/LoveHina_vol01-006.json',
+        '../output/train/LoveHina_vol01-010.json',
+        '../output/train/LoveHina_vol01-014.json',
+        '../output/train/LoveHina_vol01-016.json',
+        '../output/train/LoveHina_vol01-021.json',
+        '../output/train/LoveHina_vol01-025.json'
     ]
     data = [load_dataset(i) for i in tqdm(dataset_filenames)]
-    img_filenames = [
-        '../../Dataset_Manga/Manga109/images/AisazuNihaIrarenai/006.jpg',
-        '../../Dataset_Manga/Manga109/images/AisazuNihaIrarenai/014.jpg',
-        '../../Dataset_Manga/Manga109/images/AisazuNihaIrarenai/023.jpg',
-        '../../Dataset_Manga/Manga109/images/AisazuNihaIrarenai/026.jpg',
-        '../../Dataset_Manga/Manga109/images/AisazuNihaIrarenai/035.jpg',
-    ]
 
     # -------------------- FOR SMALL TESTING ----------------------- #
 
-    dataset_filenames_test = [
-        '../output/test/AisazuNihaIrarenai-034.jpg.json'
-    ]
-    data_test = [load_dataset(i) for i in tqdm(dataset_filenames_test)]
-    img_filenames_test = [
-        '../../Dataset_Manga/Manga109/images/AisazuNihaIrarenai/034.jpg',
-    ]
-    annotation_path = ['../../Dataset_Manga/Manga109/annotations/AisazuNihaIrarenai.xml']
-    page_number = [34]
+    # dataset_filenames_test = [
+    #     '../output/test/AisazuNihaIrarenai-034.jpg.json'
+    # ]
+    # data_test = [load_dataset(i) for i in tqdm(dataset_filenames_test)]
+    # img_filenames_test = [
+    #     '../../Dataset_Manga/Manga109/images/AisazuNihaIrarenai/034.jpg',
+    # ]
+    # annotation_path = ['../../Dataset_Manga/Manga109/annotations/AisazuNihaIrarenai.xml']
+    # page_number = [34]
 
     # -------------------- FOR GIANT TESTING ----------------------- #
 
-    # dataset_filenames_test = [i for i in os.listdir('../output/test/')]
-    # img_filenames_test = [
-    #     '../../Dataset_Manga/Manga109/images/' + '.'.join(i.replace('-', '/').split('.')[:-1])
-    #     for i in dataset_filenames_test
-    # ]
-    # data_test = [load_dataset('../output/test/' + i) for i in tqdm(dataset_filenames_test)]
-    # annotation_path = [
-    #     '../../Dataset_Manga/Manga109/annotations/' + i.split('-')[0] + '.xml'
-    #     for i in dataset_filenames_test
-    # ]
-    # page_number = [int(i.split('.')[:-2][0][-3:].lstrip('0')) for i in dataset_filenames_test]
+    dataset_filenames_test = [i for i in os.listdir('../output/test/')]
+    img_filenames_test = [
+        '../../Dataset_Manga/Manga109/images/' + '.'.join(i.replace('-', '/').split('.')[:-1])
+        for i in dataset_filenames_test
+    ]
+    data_test = [load_dataset('../output/test/' + i) for i in tqdm(dataset_filenames_test)]
+    annotation_path = [
+        '../../Dataset_Manga/Manga109/annotations/' + i.split('-')[0] + '.xml'
+        for i in dataset_filenames_test
+    ]
+    page_number = [int(i.split('.')[:-2][0][-3:].lstrip('0')) for i in dataset_filenames_test]
 
     # -------------------- END SETTING TESTING ----------------------- #
 
     y, x = [], []
     for idx in range(len(dataset_filenames)):
-        x_uncut, y_uncut = [], []
+        balanced_data = list(filter(lambda datum: datum['is_text'] == 1, data[idx]))
+        balanced_data += list(filter(lambda datum: datum['is_text'] == 0, data[idx]))[:len(balanced_data)]
 
-        for datum in data[idx]:
+        for datum in balanced_data:
             feature = preparing_feature(datum)
-            x_uncut.append(feature)
-            y_uncut.append(datum['is_text'])
+            x.append(feature)
+            y.append(datum['is_text'])
 
-        count_true = sum(filter(lambda y: y == 1, y_uncut))
-        x += x_uncut[:count_true * 2]
-        y += y_uncut[:count_true * 2]
+    scalar = preprocessing.RobustScaler().fit(x)
+    x_scaled = scalar.transform(x)
+    clf = svm.SVC(C=10**1.18)
+    model = clf.fit(x_scaled, y)
+
+    print(model)
 
     print('count data: {}'.format(len(y)))
 
-    x_test = []
-    for idx in range(len(dataset_filenames_test)):
-        for datum in data_test[idx]:
-            feature = preparing_feature(datum)
-            x_test.append(feature)
-
-    result = train(x, y, x_test)
-
     tp, fp, tn, fn = 0, 0, 0, 0
 
-    for idx in range(0, len(dataset_filenames_test)):
+    for idx in range(len(dataset_filenames_test)):
         img = cv2.imread(img_filenames_test[idx], 0)
         height, width = img.shape
-        data = data_test[idx]
 
-        predicted_output = []
-        for index in range(0, len(data)):
-            predict_data = copy.deepcopy(data[index])
-            predict_data['is_text'] = int(result[index])
-            predicted_output.append(predict_data)
+        predicted_output = copy.deepcopy(data_test[idx])
+
+        for datum in predicted_output:
+            x_test = [preparing_feature(datum)]
+            x_test_scaled = scalar.transform(x_test)
+
+            result = clf.predict(x_test_scaled)
+            datum['is_text'] = int(result[0])
 
         manga_name = img_filenames_test[idx].split('/')[-2]
         output_filename = img_filenames_test[idx].split('/')[-1].split('.')[0]
         save_by_dict('../output/predicted/{}-{}.json'.format(manga_name, output_filename), predicted_output)
 
         manga109_text_area_list = Manga109Annotation(annotation_path[idx], page_number[idx]).get_text_area_list()
-
         mask_truth = np.zeros((height, width), np.int64)
         for text_area in manga109_text_area_list:
             topleft_pt, bottomright_pt = text_area[0], text_area[1]
