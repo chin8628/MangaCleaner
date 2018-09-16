@@ -18,10 +18,9 @@ from modules.label_rect import label
 from text_detection import text_detection
 from modules.manga109_annotation import Manga109Annotation
 from modules.file_manager import save, load_dataset, save_by_dict
-from modules.training import train
 from modules.utils import histogram_calculate_parallel
 
-from main_command.svm import svm as svm_command
+from main_command.svm import train as train_command
 from main_command.draw_rect import draw_rect as draw_rect_command
 from main_command.extract_for_text import extract_for_text as extract_for_text_command
 
@@ -178,13 +177,12 @@ class Main:
         draw_rect_command(img_path, dataset_path)
 
     def svm(self):
-        svm_command()
+        train_command()
 
     def extract_for_test(self):
         imagedir_dataset_path = '../../Dataset_Manga/Manga109/images/'
-        # test_images_path = open('./filename_test.txt', 'r').read().split('\n')
-        test_images_path = ['AisazuNihaIrarenai/034.jpg']
-        test_json = ['.'.join(i.replace('-', '/').split('.')[0:-1]) for i in os.listdir('../output/test/')]
+        test_images_path = open('./filename_test.txt', 'r').read().split('\n')
+        test_json = ['.'.join(i.replace('-', '/').split('.')[0:-1]) for i in os.listdir('../output/')]
         failed_log = ['.'.join(i.replace('-', '/').split('.')[0:-1]) for i in os.listdir('../log/')]
 
         for path in test_images_path:
@@ -199,7 +197,7 @@ class Main:
             try:
                 extract_for_text_command(
                     imagedir_dataset_path + path,
-                    '../output/test/' + path.replace('/', '-') + '.json'
+                    '../output/' + path.replace('/', '-') + '.json'
                 )
             except KeyboardInterrupt:
                 file = open('../log/{}.txt'.format(path.replace('/', '-')), 'w')

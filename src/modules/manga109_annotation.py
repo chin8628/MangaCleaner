@@ -19,3 +19,15 @@ class Manga109Annotation:
             pts.append((topleft_pt, bottomright_pt))
 
         return pts
+
+    def get_text_area_dict(self) -> list:
+        page = self.root.find('pages')[self.page_index]
+        pts = {}
+
+        for text in page.findall('text'):
+            pts[text.get('id')] = {
+                'topleft_pt': (int(text.get('ymin')), int(text.get('xmin'))),
+                'bottomright_pt': (int(text.get('ymax')), int(text.get('xmax')))
+            }
+
+        return pts

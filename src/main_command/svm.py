@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 
 from sklearn import svm, preprocessing
 
-from modules.training import train
 from modules.file_manager import load_dataset, save_by_dict
 from modules.manga109_annotation import Manga109Annotation
 
@@ -37,40 +36,33 @@ def preparing_feature(datum):
 
 def train():
     dataset_filenames = [
-        '../output/train/AosugiruHaru-005.json',
-        '../output/train/AosugiruHaru-008.json',
-        '../output/train/AosugiruHaru-015.json',
-        '../output/train/AosugiruHaru-018.json',
-        '../output/train/AosugiruHaru-079.json',
-        '../output/train/Arisa-013.json',
-        '../output/train/Arisa-025.json',
-        '../output/train/Arisa-026.json',
-        '../output/train/Arisa-040.json',
-        '../output/train/Arisa-041.json',
-        '../output/train/BakuretsuKungFuGirl-012.json',
-        '../output/train/BakuretsuKungFuGirl-013.json',
-        '../output/train/BakuretsuKungFuGirl-016.json',
-        '../output/train/BakuretsuKungFuGirl-017.json',
-        '../output/train/BakuretsuKungFuGirl-021.json',
-        '../output/train/DollGun-007.json',
-        '../output/train/DollGun-008.json',
-        '../output/train/DollGun-010.json',
-        '../output/train/DollGun-017.json',
-        '../output/train/DollGun-026.json',
-        '../output/train/DollGun-027.json',
-        '../output/train/DollGun-028.json',
-        '../output/train/EvaLady-009.json',
-        '../output/train/EvaLady-011.json',
-        '../output/train/EvaLady-016.json',
-        '../output/train/EvaLady-027.json',
-        '../output/train/EvaLady-043.json',
-        '../output/train/LoveHina_vol01-005.json',
-        '../output/train/LoveHina_vol01-006.json',
-        '../output/train/LoveHina_vol01-010.json',
-        '../output/train/LoveHina_vol01-014.json',
-        '../output/train/LoveHina_vol01-016.json',
-        '../output/train/LoveHina_vol01-021.json',
-        '../output/train/LoveHina_vol01-025.json'
+        '../output/verified/Aisazu-006.json',
+        '../output/verified/Aisazu-014.json',
+        '../output/verified/Aisazu-023.json',
+        '../output/verified/Aisazu-026.json',
+        '../output/verified/Aisazu-035.json',
+        '../output/verified/AosugiruHaru-010.json',
+        '../output/verified/AosugiruHaru-011.json',
+        '../output/verified/AosugiruHaru-017.json',
+        '../output/verified/AosugiruHaru-018.json',
+        '../output/verified/AosugiruHaru-021.json',
+        '../output/verified/Arisa-013.json',
+        '../output/verified/Arisa-016.json',
+        '../output/verified/Arisa-017.json',
+        '../output/verified/Arisa-024.json',
+        '../output/verified/Arisa-041.json',
+        '../output/verified/BakuretsuKungFuGirl-004.json',
+        '../output/verified/BakuretsuKungFuGirl-012.json',
+        '../output/verified/BakuretsuKungFuGirl-017.json',
+        '../output/verified/BakuretsuKungFuGirl-021.json',
+        '../output/verified/BakuretsuKungFuGirl-023.json',
+        '../output/verified/DollGun-004.json',
+        '../output/verified/DollGun-008.json',
+        '../output/verified/DollGun-013.json',
+        '../output/verified/DollGun-028.json',
+        '../output/verified/DollGun-031.json',
+        '../output/verified/EvaLady-043.json',
+        '../output/verified/LoveHina_vol01-025.json'
     ]
     data = [load_dataset(i) for i in tqdm(dataset_filenames)]
 
@@ -138,7 +130,7 @@ def train():
 
         manga_name = img_filenames_test[idx].split('/')[-2]
         output_filename = img_filenames_test[idx].split('/')[-1].split('.')[0]
-        save_by_dict('../output/predicted/{}-{}.json'.format(manga_name, output_filename), predicted_output)
+        # save_by_dict('../output/predicted/{}-{}.json'.format(manga_name, output_filename), predicted_output)
 
         manga109_text_area_list = Manga109Annotation(annotation_path[idx], page_number[idx]).get_text_area_list()
         mask_truth = np.zeros((height, width), np.int64)
