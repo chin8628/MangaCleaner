@@ -2,6 +2,7 @@ import math
 import numpy as np
 import logging
 
+
 def get_swt(edges, sobel_x, sobel_y, direction, magnitude, height, width) -> np.ndarray:
     rays = []
     swt = np.full(edges.shape, np.Infinity)
@@ -57,7 +58,7 @@ def get_swt(edges, sobel_x, sobel_y, direction, magnitude, height, width) -> np.
                     break
 
                 except IndexError:
-                        break
+                    break
 
     for ray in rays:
         median = np.median([swt[pos['y'], pos['x']] for pos in ray])
