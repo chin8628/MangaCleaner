@@ -2,21 +2,20 @@ import logging
 from typing import List, Tuple
 import math
 
-import scipy.sparse
 import scipy.spatial
 import numpy as np
 
 
 def get_words(swts: List[int], heights: List[int], widths: List[int], topleft_pts: Tuple[int, int]):
-    swts_array = np.asarray([[math.log(i, 2)] for i in swts])
-    heights_array = np.asarray([[math.log(i, 2)] for i in heights])
+    swts_array = np.asarray([[i] for i in swts])
+    heights_array = np.asarray([[math.log(i, 4)] for i in heights])
     topleft_pts_array = np.array(topleft_pts)
 
     if len(swts_array) == 0 or len(heights_array) == 0 or len(topleft_pts_array) == 0:
         return []
 
     swt_tree = scipy.spatial.KDTree(np.asarray(swts_array))
-    stp = swt_tree.query_pairs(1)
+    stp = swt_tree.query_pairs(5)
 
     height_tree = scipy.spatial.KDTree(np.asarray(heights_array))
     htp = height_tree.query_pairs(1)
@@ -30,7 +29,7 @@ def get_words(swts: List[int], heights: List[int], widths: List[int], topleft_pt
     for idx1, idx2 in isect:
         widest = max(widths[idx1], widths[idx2])
         distance = np.linalg.norm(topleft_pts_array[idx1] - topleft_pts_array[idx2])
-        if distance >= widest * 2.5:
+        if distance >= widest * 1.5:
             continue
 
         added = False

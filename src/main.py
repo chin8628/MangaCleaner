@@ -174,7 +174,7 @@ class Main:
 
     @staticmethod
     def draw_rect(img_path, dataset_path):
-        draw_rect_command(img_path, dataset_path)
+        draw_rect_command('../../Dataset_Manga/Manga109/images/' + img_path, dataset_path)
 
     def svm(self):
         train_command()
