@@ -103,3 +103,13 @@ ENV/
 \.idea/
 
 \.vscode/
+
+output/
+
+output_hist/
+
+log/
+
+train_dataset/
+
+test_dataset/

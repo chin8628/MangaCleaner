@@ -1,25 +1,18 @@
-from collections import defaultdict
+import logging
+
 import numpy as np
 
-def connect_components(swt):
+
+def get_connected_components(swt: np.ndarray):
     class Label(object):
         def __init__(self, value):
             self.value = value
             self.parent = self
             self.rank = 0
 
-        def __eq__(self, other):
-            if type(other) is type(self):
-                return self.value == other.value
-            else:
-                return False
-
-        def __ne__(self, other):
-            return not self.__eq__(other)
-
     ld = {}
 
-    def MakeSet(x):
+    def make_set(x):
         try:
             return ld[x]
         except KeyError:
@@ -27,19 +20,20 @@ def connect_components(swt):
             ld[x] = item
             return item
 
-    def Find(item):
+    def find(item):
         if item.parent != item:
-            item.parent = Find(item.parent)
+            item.parent = find(item.parent)
+
         return item.parent
 
-    def Union(x, y):
+    def union(x, y):
         """
         :param x:
         :param y:
         :return: root node of new union tree
         """
-        x_root = Find(x)
-        y_root = Find(y)
+        x_root = find(x)
+        y_root = find(y)
         if x_root == y_root:
             return x_root
 
@@ -59,17 +53,18 @@ def connect_components(swt):
     next_label = 1
 
     swt_ratio_threshold = 3.0
+
     for y in range(swt.shape[0]):
         for x in range(swt.shape[1]):
 
             sw_point = swt[y, x]
-            if sw_point < np.Infinity and sw_point > 0:
+            if 0 < sw_point < np.Infinity:
                 neighbors = [(y, x - 1),  # west
                              (y - 1, x - 1),  # northwest
                              (y - 1, x),  # north
                              (y - 1, x + 1)]  # northeast
                 connected_neighbors = None
-                neighborvals = []
+                neighbor_values = []
 
                 for neighbor in neighbors:
                     try:
@@ -78,34 +73,43 @@ def connect_components(swt):
                     except IndexError:
                         continue
                     if label_n > 0 and sw_n / sw_point < swt_ratio_threshold and sw_point / sw_n < swt_ratio_threshold:
-                        neighborvals.append(label_n)
+                        neighbor_values.append(label_n)
                         if connected_neighbors:
-                            connected_neighbors = Union(connected_neighbors, MakeSet(label_n))
+                            connected_neighbors = union(connected_neighbors, make_set(label_n))
                         else:
-                            connected_neighbors = MakeSet(label_n)
+                            connected_neighbors = make_set(label_n)
 
                 if not connected_neighbors:
-                    trees[next_label] = (MakeSet(next_label))
+                    trees[next_label] = make_set(next_label)
                     label_map[y, x] = next_label
                     next_label += 1
                 else:
-                    label_map[y, x] = min(neighborvals)
-                    trees[connected_neighbors.value] = Union(trees[connected_neighbors.value], connected_neighbors)
+                    label_map[y, x] = min(neighbor_values)
+                    trees[connected_neighbors.value] = union(trees[connected_neighbors.value], connected_neighbors)
 
     layers = {}
-    contours = defaultdict(list)
     for x in range(swt.shape[1]):
         for y in range(swt.shape[0]):
-            if label_map[y, x] > 0:
-                item = ld[label_map[y, x]]
-                common_label = Find(item).value
-                label_map[y, x] = common_label
-                contours[common_label].append([x, y])
-                try:
-                    layer = layers[common_label]
-                except KeyError:
-                    layers[common_label] = np.zeros(shape=swt.shape, dtype=np.uint16)
-                    layer = layers[common_label]
+            if label_map[y, x] <= 0:
+                continue
 
-                layer[y, x] = 1
-    return layers
+            item = ld[label_map[y, x]]
+            common_label = find(item).value
+            label_map[y, x] = common_label
+
+            try:
+                layer = layers[common_label]
+            except KeyError:
+                try:
+                    layers[common_label] = np.zeros(shape=swt.shape, dtype=np.uint8)
+                    layer = layers[common_label]
+                except MemoryError:
+                    print('Memmory Error')
+                    print(len(layers))
+                    quit()
+
+            layer[y, x] = 1
+
+    logging.getLogger(__name__).info('Finished.')
+
+    return layers, label_map
