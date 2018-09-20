@@ -106,6 +106,10 @@ ENV/
 
 output/
 
-test_dataset/
+output_hist/
+
+log/
 
 train_dataset/
+
+test_dataset/

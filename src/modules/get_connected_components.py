@@ -100,9 +100,13 @@ def get_connected_components(swt: np.ndarray):
             try:
                 layer = layers[common_label]
             except KeyError:
-                layers[common_label] = np.zeros(
-                    shape=swt.shape, dtype=np.uint16)
-                layer = layers[common_label]
+                try:
+                    layers[common_label] = np.zeros(shape=swt.shape, dtype=np.uint8)
+                    layer = layers[common_label]
+                except MemoryError:
+                    print('Memmory Error')
+                    print(len(layers))
+                    quit()
 
             layer[y, x] = 1
 
