@@ -106,7 +106,6 @@ def get_connected_components(swt: np.ndarray):
                 except MemoryError:
                     print('Memmory Error')
                     print(len(layers))
-                    print(sizeof)
                     quit()
 
             layer[y, x] = 1

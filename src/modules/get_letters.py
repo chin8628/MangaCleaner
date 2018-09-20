@@ -10,7 +10,7 @@ import cv2
 def get_letters(swt: np.ndarray, connected_components: dict):
     swt_values, heights, widths, diameters, topleft_pts = [], [], [], [], []
 
-    for label, layer in connected_components.items():
+    for label, layer in tqdm(connected_components.items()):
         nz_y, nz_x = np.nonzero(layer)
         east, west, south, north = max(nz_x), min(nz_x), max(nz_y), min(nz_y)
         width, height = east - west, south - north

@@ -20,3 +20,14 @@ def histogram_calculate_parallel(src: np.ndarray, words: Dict, hist_send_back: L
             hist[i] += 1
 
         hist_send_back.append(list(hist))
+
+
+def histogram_calculate(src: np.ndarray) -> List:
+    height, width = src.shape
+    flatten_img = list(itertools.chain.from_iterable(src))
+
+    hist = np.zeros(256).astype(np.uint8)
+    for i in flatten_img:
+        hist[i] += 1
+
+    return hist

@@ -18,7 +18,9 @@ def text_detection(src: np.ndarray, expected_height: int = 1200) -> List[dict]:
     src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
     height, width = src.shape[:2]
 
-    edges = cv2.Canny(src_gray, 160, 200)
+    high_thresh, thresh_im = cv2.threshold(src_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    low_thresh = 0.5*high_thresh
+    edges = cv2.Canny(src_gray, low_thresh, high_thresh)
 
     invert_gray_image = cv2.bitwise_not(src_gray)
     sobel_x = cv2.Sobel(invert_gray_image, cv2.CV_64F, 1, 0)

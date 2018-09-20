@@ -3,8 +3,8 @@ import cv2
 from modules.file_manager import load_dataset
 from tqdm import tqdm
 
-title = 'DollGun'
-page = 31
+title = 'LoveHina_vol01'
+page = 30
 img = cv2.imread('../../Dataset_Manga/Manga109/images/%s/%03d.jpg' % (title, page))
 data = load_dataset('../output/%s-%03d.json' % (title, page))
 
