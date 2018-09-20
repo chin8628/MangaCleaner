@@ -105,3 +105,7 @@ ENV/
 \.vscode/
 
 output/
+
+test_dataset/
+
+train_dataset/
