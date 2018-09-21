@@ -7,7 +7,7 @@ commands = map(
     lambda x: 'python save_label.py % s ../output/%s.json\n' % (x.split('.')[0], x.split('.')[0]),
     os.listdir(dataset_img_path)
 )
-cmd_chunks = chunks(list(commands), 8)
+cmd_chunks = chunks(list(commands), 6)
 
 cnt = 0
 for cmd_chunk in cmd_chunks:
