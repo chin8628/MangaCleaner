@@ -5,9 +5,9 @@ from modules.file_manager import load_dataset
 from modules.label_rect import label
 
 
-def draw_rect(id):
-    data = load_dataset('../output/%s.json' % id)
-    src = cv2.imread('../../danbooru/images/resized/%s.jpg' % id)
+def draw_rect(id, dataset_path):
+    data = load_dataset(dataset_path)
+    src = cv2.imread('../../danbooru/resized/images/%s.jpg' % id)
 
     widths, heights, topleft_pts = [], [], []
     for datum in list(filter(lambda x: x['is_text'] in [-1, 1, 0], data)):

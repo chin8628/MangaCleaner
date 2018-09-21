@@ -23,11 +23,16 @@ def histogram_calculate_parallel(src: np.ndarray, words: Dict, hist_send_back: L
 
 
 def histogram_calculate(src: np.ndarray) -> List:
-    height, width = src.shape
     flatten_img = list(itertools.chain.from_iterable(src))
 
     hist = np.zeros(256).astype(np.uint8)
-    for i in flatten_img:
+    for i in tqdm(flatten_img):
         hist[i] += 1
 
-    return hist
+    return hist.copy()
+
+
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]

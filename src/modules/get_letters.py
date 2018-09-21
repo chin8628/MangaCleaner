@@ -15,7 +15,7 @@ def get_letters(swt: np.ndarray, connected_components: dict):
         east, west, south, north = max(nz_x), min(nz_x), max(nz_y), min(nz_y)
         width, height = east - west, south - north
 
-        if height <= 5 or height >= 300:
+        if height <= 3 or height >= 300:
             continue
 
         diameter = math.sqrt(width * width + height * height)

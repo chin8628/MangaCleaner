@@ -2,10 +2,14 @@ import logging
 from pathlib import Path
 import sys
 import math
+import copy
+import itertools
+from multiprocessing import Process, Manager
 
 import cv2
 import fire
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Modules
 from tqdm import tqdm
@@ -13,14 +17,20 @@ from tqdm import tqdm
 from text_detection import text_detection
 from modules.danbooru import Danbooru
 from modules.file_manager import save
-from modules.utils import histogram_calculate
+from modules.utils import histogram_calculate, histogram_calculate_parallel
 
 sys.setrecursionlimit(10000)
 
 
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
+
 def save_label(id, output_path):
-    annotation_path = '../../danbooru/annotations/%s.json' % id
-    path = '../../danbooru/images/resized/%s.jpg' % id
+    annotation_path = '../../danbooru/resized/annotations/%s.json' % id
+    path = '../../danbooru/resized/images/%s.jpg' % id
     image_file = Path(str(path))
 
     logging.info('Absolute annotation path: %s', Path(annotation_path).resolve())
@@ -36,6 +46,7 @@ def save_label(id, output_path):
 
         hist = histogram_calculate(src_gray[y1: y2+1, x1: x2+1])
         src[y1: y2+1, x1: x2+1] = 255
+        src_gray[y1: y2+1, x1: x2+1] = 255
 
         swts.append(0)
         heights.append(y2 - y1)
@@ -44,19 +55,33 @@ def save_label(id, output_path):
         is_texts.append(1)
         hists.append(hist)
 
-    for word in text_detection(src):
-        x1, y1 = word['topleft_pt'][1], word['topleft_pt'][0]
-        x2, y2 = word['topleft_pt'][1] + word['width'], word['topleft_pt'][0] + word['height']
-        hist = histogram_calculate(src_gray[y1: y2+1, x1: x2+1])
+    processes = []
+    hist_block = []
+    process_number = 4
+    words = text_detection(src)
+    wors_chunks = chunks(words, math.ceil(len(words) / process_number))
+    with Manager() as manager:
+        for word_chunk in wors_chunks:
+            hist = manager.list()
+            process = Process(target=histogram_calculate_parallel, args=(src_gray, word_chunk, hist))
+            process.start()
+            processes.append(process)
+            hist_block.append(hist)
 
-        swts.append(0)
+        for process in processes:
+            process.join()
+
+        hists += list(itertools.chain.from_iterable(hist_block))
+
+    for word in words:
+        swts.append(word['swt'])
         heights.append(word['height'])
         widths.append(word['width'])
         topleft_pts.append(word['topleft_pt'])
         is_texts.append(0)
-        hists.append(hist)
 
     save(output_path, swts, heights, widths, topleft_pts, is_texts, hists)
+
     return 0
 
 
