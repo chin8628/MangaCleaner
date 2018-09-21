@@ -1,7 +1,9 @@
-'#!/bin/sh'
-python save_label.py 2964594 ../output/2964594.json
-python save_label.py 3001542 ../output/3001542.json
-python save_label.py 3001549 ../output/3001549.json
-python save_label.py 3001553 ../output/3001553.json
-python save_label.py 3001556 ../output/3001556.json
-python save_label.py 3001561 ../output/3001561.json
+'#!/bin/bash'
+python save_label.py 3142565 ../output/3142565.json
+python save_label.py 3178629 ../output/3178629.json
+python save_label.py 3178631 ../output/3178631.json
+python save_label.py 3179121 ../output/3179121.json
+python save_label.py 3179122 ../output/3179122.json
+python save_label.py 3185633 ../output/3185633.json
+python save_label.py 3185634 ../output/3185634.json
+python save_label.py 3185636 ../output/3185636.json
