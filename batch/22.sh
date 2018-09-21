@@ -1,3 +1,4 @@
+'#!/bin/sh'
 python save_label.py 3142557 ../output/3142557.json
 python save_label.py 3142560 ../output/3142560.json
 python save_label.py 3142563 ../output/3142563.json
