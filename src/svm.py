@@ -36,18 +36,24 @@ def preparing_feature(datum):
     return new_hist + [skew, g_mean, np.std(data['hist']), entropy, energy]
 
 
-def train():
-    train_ids = [i.split('.')[0] for i in os.listdir('../output/train/')]
+def train(train_ids_input=None, test_ids_input=None, c_param=1, gamma_param='auto', predicted_dir='../output/predicted/'):
+    if train_ids_input:
+        train_ids = train_ids_input
+    else:
+        train_ids = [i.split('.')[0] for i in os.listdir('../output/train/')]
+
     shuffle(train_ids)
     train_ids = train_ids[:math.floor((len(train_ids) / 5)) * 4]
-    print(len(train_ids))
     train_dataset_files = ['../output/train/%s.json' % i for i in train_ids]
     train_data = [load_dataset(i) for i in tqdm(train_dataset_files)]
 
     # -------------------- FOR TESTING ----------------------- #
 
-    test_ids = list(filter(lambda x: x not in train_ids, [i.split('.')[0] for i in os.listdir('../output/test/')]))
-    print(len(test_ids))
+    if test_ids_input:
+        test_ids = test_ids_input
+    else:
+        test_ids = list(filter(lambda x: x not in train_ids, [i.split('.')[0] for i in os.listdir('../output/test/')]))
+
     test_dataset_files = ['../output/test/%s.json' % i for i in test_ids]
     test_data = [load_dataset(i) for i in tqdm(test_dataset_files)]
     test_image_files = ['../../danbooru/resized/images/%s.jpg' % i for i in test_ids]
@@ -56,21 +62,24 @@ def train():
 
     y, x = [], []
     for idx in tqdm(range(len(train_dataset_files))):
+        img_file = '../../danbooru/resized/images/' + train_ids[idx] + '.jpg'
+        gray_img = cv2.imread(img_file, 0)
         balanced_data = list(filter(lambda datum: datum['is_text'] == 1, train_data[idx]))
         balanced_data += list(filter(lambda datum: datum['is_text'] == 0, train_data[idx]))[:len(balanced_data)]
 
         for datum in balanced_data:
-            feature = preparing_feature(datum)
+            feature = [preparing_feature(datum)]
             x.append(feature)
             y.append(datum['is_text'])
 
+    print('no. train dataset: %d' % len(x))
+
     scalar = preprocessing.RobustScaler().fit(x)
     x_scaled = scalar.transform(x)
-    clf = svm.SVC()
+    clf = svm.SVC(C=c_param, gamma=gamma_param)
     model = clf.fit(x_scaled, y)
 
     print(model)
-    print('count data: {}'.format(len(y)))
 
     for idx in range(len(test_ids)):
         original = cv2.imread(test_image_files[idx])
@@ -97,7 +106,7 @@ def train():
         for contour in contours:
             x, y, w, h = cv2.boundingRect(contour)
 
-            if w * h < 300:
+            if w * h < 400 or w * h > 120000:
                 continue
 
             data.append({
@@ -112,7 +121,7 @@ def train():
 
             index += 1
 
-        save_by_dict('../output/predicted/%s.json' % test_ids[idx], data)
+        save_by_dict(predicted_dir + '%s.json' % test_ids[idx], data)
 
 
 if __name__ == '__main__':
