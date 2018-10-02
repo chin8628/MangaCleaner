@@ -65,7 +65,7 @@ def evaluate(test_ids_input=None, predicted_dir='../output/predicted/'):
             x2, y2 = x1 + w, y1 + h
             rect_truths.append(Rect(x1=x1, y1=y1, x2=x2, y2=y2))
 
-        for datum in filter(lambda x: x['is_text'] == 1, test_datum):
+        for datum in test_datum:
             y1, x1 = datum['topleft_pt']['y'], datum['topleft_pt']['x']
             h, w = datum['height'], datum['width']
             y2, x2 = y1 + h, x1 + w
@@ -76,7 +76,7 @@ def evaluate(test_ids_input=None, predicted_dir='../output/predicted/'):
                     matched_rect += 1
                     break
 
-        no_detected_rect += len(list(filter(lambda x: x['is_text'] == 1, test_datum)))
+        no_detected_rect += len(test_datum)
         no_rect_in_dataset += len(text_area_dataset)
 
     recall = matched_rect / no_rect_in_dataset

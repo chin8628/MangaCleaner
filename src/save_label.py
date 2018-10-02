@@ -1,92 +1,64 @@
-import logging
-from pathlib import Path
-import sys
-import math
-import copy
-import itertools
-from multiprocessing import Process, Manager
-
 import cv2
-import fire
+import json
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
-
-# Modules
-from tqdm import tqdm
-
+import os
+from modules.manga109 import Manga109
 from text_detection import text_detection
-from modules.danbooru import Danbooru
-from modules.file_manager import save
-from modules.utils import histogram_calculate, histogram_calculate_parallel
-
-sys.setrecursionlimit(10000)
 
 
-def chunks(l, n):
-    """Yield successive n-sized chunks from l."""
-    for i in range(0, len(l), n):
-        yield l[i:i + n]
+def main():
+    img_dir = '../../Manga109-small/images/'
+    annotation_dir = '../../Manga109-small/annotations/'
+    output_window_dir = '../output/connected_comp_window_manga109/'
 
+    for title in os.listdir(img_dir):
+        manga109 = Manga109(title)
 
-def save_label(id, output_path):
-    annotation_path = '../../danbooru/resized/annotations/%s.json' % id
-    path = '../../danbooru/resized/images/%s.jpg' % id
-    image_file = Path(str(path))
+        for page_file in os.listdir(img_dir + title):
+            page_id = int(page_file.split('.')[0])
+            print(page_id)
 
-    logging.info('Absolute annotation path: %s', Path(annotation_path).resolve())
-    logging.info('Absolute img path: %s', image_file.resolve())
+            src = cv2.imread(img_dir + title + '/' + page_file)
+            src_gray = cv2.imread(img_dir + title + '/' + page_file, 0)
+            annotation = manga109.get_text_area(page_id)
 
-    src = cv2.imread(path)
-    src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
+            if not os.path.exists(output_window_dir + title + '/%03d/true/' % page_id):
+                os.makedirs(output_window_dir + title + '/%03d/true/' % page_id)
 
-    swts, heights, widths, topleft_pts, is_texts, hists = [], [], [], [], [], []
-    for text_area in tqdm(Danbooru(id).get_text_area()):
-        x1, y1, h, w = text_area['x'], text_area['y'], text_area['height'], text_area['width']
-        x2, y2 = x1 + w, y1 + h
+            if not os.path.exists(output_window_dir + title + '/%03d/false/' % page_id):
+                os.makedirs(output_window_dir + title + '/%03d/false/' % page_id)
 
-        hist = histogram_calculate(src_gray[y1: y2+1, x1: x2+1])
-        src[y1: y2+1, x1: x2+1] = 255
-        src_gray[y1: y2+1, x1: x2+1] = 255
+            mask = np.zeros(src_gray.shape, np.uint8)
 
-        swts.append(0)
-        heights.append(y2 - y1)
-        widths.append(x2 - x1)
-        topleft_pts.append((y1, x1))
-        is_texts.append(1)
-        hists.append(hist)
+            for datum in annotation:
+                x1, y1, w, h = datum['x'], datum['y'], datum['width'], datum['height']
+                x2, y2 = x1 + w, y1 + h
+                mask[y1:y2, x1:x2] = 1
 
-    processes = []
-    hist_block = []
-    process_number = 4
-    words = text_detection(src)
-    wors_chunks = chunks(words, math.ceil(len(words) / process_number))
-    with Manager() as manager:
-        for word_chunk in wors_chunks:
-            hist = manager.list()
-            process = Process(target=histogram_calculate_parallel, args=(src_gray, word_chunk, hist))
-            process.start()
-            processes.append(process)
-            hist_block.append(hist)
+            for datum in text_detection(src):
+                x1, y1, w, h = datum['x'], datum['y'], datum['width'], datum['height']
+                x2, y2 = x1 + w, y1 + h
 
-        for process in processes:
-            process.join()
+                roi_mask = mask[y1:y2, x1:x2]
 
-        hists += list(itertools.chain.from_iterable(hist_block))
+                if x1 < 0 or y1 < 0:
+                    continue
 
-    for word in words:
-        swts.append(word['swt'])
-        heights.append(word['height'])
-        widths.append(word['width'])
-        topleft_pts.append(word['topleft_pt'])
-        is_texts.append(0)
+                if x2 > src.shape[1] or y2 > src.shape[0]:
+                    continue
 
-    save(output_path, swts, heights, widths, topleft_pts, is_texts, hists)
-
-    return 0
+                if sum(sum(roi_mask)) > (w * h) / 2:
+                    cv2.imwrite(output_window_dir + '%s/%03d/true/y_%d_x_%d.jpg' %
+                                (title, page_id, y1, x1), src[y1:y2, x1:x2])
+                else:
+                    cv2.imwrite(output_window_dir + '%s/%03d/false/y_%d_x_%d.jpg' %
+                                (title, page_id, y1, x1), src[y1:y2, x1:x2])
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     logging.getLogger(__name__)
 
-    fire.Fire(save_label)
+    main()
