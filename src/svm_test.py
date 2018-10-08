@@ -15,7 +15,7 @@ from modules.file_manager import load_dataset
 
 
 def main():
-    clf = joblib.load('../model/balanced-data-manga109-small.pkl')
+    clf = joblib.load('./model.pkl')
     img_dataset_dir = '../../Manga109-small/images/'
     purposed_region = '../output/test/'
     output_dir = '../output/predicted/'
@@ -79,6 +79,9 @@ def main():
 
             mask = np.zeros(src_gray.shape, dtype=np.uint8)
             for chain in chains:
+                if len(chain) == 2:
+                    continue
+
                 min_x, min_y, max_x, max_y = np.inf, np.inf, -1, -1
 
                 for rect in chain:
@@ -87,7 +90,7 @@ def main():
 
                 mask[min_y:max_y, min_x:max_x] = 1
 
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones(((5, 5))))
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones(((3, 3))))
             im2, contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
             data = []
@@ -98,6 +101,9 @@ def main():
 
                 if w < 40 and h < 40:
                     continue
+
+                # if w * h < 40 * 100:
+                #     continue
 
                 data.append({
                     'id': index,
