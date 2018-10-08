@@ -26,13 +26,13 @@ def main():
         if not os.path.exists(output_dir + title + "/"):
             os.makedirs(output_dir + title + "/")
 
-        for page_id in [i.split('.')[0] for i in os.listdir(title_path)]:
+        for page_id in tqdm([i.split('.')[0] for i in os.listdir(title_path)]):
             src = cv2.imread(img_dataset_dir + title + '/test/' + page_id + '.jpg')
             src_gray = cv2.imread(img_dataset_dir + title + '/test/' + page_id + '.jpg', 0)
             data = load_dataset(purposed_region + title + '/' + page_id + '.json')
             rect_list = []
 
-            for datum in tqdm(data):
+            for datum in data:
                 x1, y1, h, w = datum['topleft_pt']['x'], datum['topleft_pt']['y'], datum['height'], datum['width']
                 x2, y2 = x1 + w, y1 + h
 
@@ -90,7 +90,7 @@ def main():
 
                 mask[min_y:max_y, min_x:max_x] = 1
 
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones(((3, 3))))
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones(((7, 7))))
             im2, contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
             data = []
@@ -102,8 +102,8 @@ def main():
                 if w < 40 and h < 40:
                     continue
 
-                # if w * h < 40 * 100:
-                #     continue
+                if w * h < 40 * 100:
+                    continue
 
                 data.append({
                     'id': index,
