@@ -15,10 +15,12 @@ dataset_dir = '../output/connected_comp_window_manga109/'
 y_train, x_train = [], []
 true_feature, false_feature = [], []
 
-for title in tqdm(os.listdir(dataset_dir)):
-    for page in os.listdir(dataset_dir + title):
+for title in os.listdir(dataset_dir):
+    title_true_features, title_false_features = [], []
+
+    for page in tqdm(os.listdir(dataset_dir + title)):
         for slice_img in os.listdir(dataset_dir + title + '/' + page + '/true/'):
-            print(dataset_dir + title + '/' + page + '/true/' + slice_img)
+            # print(dataset_dir + title + '/' + page + '/true/' + slice_img)
 
             image = cv2.imread(dataset_dir + title + '/' + page + '/true/' + slice_img, 0)
             h, w = image.shape
@@ -27,7 +29,7 @@ for title in tqdm(os.listdir(dataset_dir)):
             if len(fd) != 2916:
                 continue
 
-            true_feature.append(fd)
+            title_true_features.append(fd)
 
         for slice_img in os.listdir(dataset_dir + title + '/' + page + '/false/'):
             image = cv2.imread(dataset_dir + title + '/' + page + '/false/' + slice_img, 0)
@@ -37,12 +39,12 @@ for title in tqdm(os.listdir(dataset_dir)):
             if len(fd) != 2916:
                 continue
 
-            false_feature.append(fd)
+            title_false_features.append(fd)
 
-shuffle(true_feature)
-shuffle(false_feature)
+    title_false_features = title_false_features[:len(title_true_features)]
 
-false_feature = false_feature[:len(true_feature)]
+    true_feature += title_true_features
+    false_feature += title_false_features
 
 x_train = true_feature + false_feature
 y_train = ([1] * len(true_feature)) + ([0] * len(false_feature))
