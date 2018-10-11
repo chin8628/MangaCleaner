@@ -14,13 +14,16 @@ for result_file in os.listdir('../output/result/'):
     # if datum['fmeasure'] < 0.3:
     #     continue
 
+    if datum['c'] < 4:
+        continue
+
     data.append(datum)
 
 data = sorted(data, key=lambda x: (x['c'], x['gamma']))
 
 
 for datum in data:
-    labels.append('%d %d' % (datum['c'], datum['gamma']))
+    labels.append('%.02f %.02f' % (datum['c'], datum['gamma']))
     fms.append(datum['fmeasure'])
 
 print(max(fms))
