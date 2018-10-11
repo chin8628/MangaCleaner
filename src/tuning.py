@@ -24,7 +24,7 @@ def main(c_param, gamma_param):
         json.dump(data, fp)
     fp.close()
 
-    os.remove('./model/%s.pkl', model_name)
+    os.remove('./model/%s.pkl' % model_name)
 
 
 if __name__ == '__main__':
