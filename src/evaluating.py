@@ -1,15 +1,15 @@
 import os
 import cv2
-import fire
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import namedtuple
+import json
 
 # Modules
 from tqdm import tqdm
 import cv2
 
-from modules.danbooru import Danbooru
+from modules.manga109 import Manga109
 from modules.file_manager import load_dataset
 
 Rect = namedtuple('Rect', 'x1 y1 x2 y2')
@@ -40,44 +40,36 @@ def isRectMatched(rect_truth: Rect, rect_test: Rect, threashold: float):
         return False
 
 
-def evaluate(test_ids_input=None, predicted_dir='../output/predicted/'):
+def evaluate(predicted_dir='../output/predicted/'):
     matched_rect = 0
     no_rect_in_dataset, no_detected_rect = 0, 0
 
-    if test_ids_input:
-        test_ids = test_ids_input
-    else:
-        test_ids = [i.split('.')[0] for i in os.listdir(predicted_dir) if len(i.split('.')) == 2]
+    for title in os.listdir(predicted_dir):
+        manga109 = Manga109(title)
 
-    test_image_files = ['../../danbooru/resized/images/%s.jpg' % i for i in test_ids]
-    test_dataset_files = [predicted_dir + '%s.json' % i for i in test_ids]
-    test_data = [load_dataset(i) for i in tqdm(test_dataset_files)]
+        for page_id in [int(i.split('.')[0]) for i in os.listdir(predicted_dir + title)]:
+            rect_truths = []
+            text_area_dataset = list(manga109.get_text_area(page_id))
+            test_data = load_dataset(predicted_dir + title + '/%03d.json' % page_id)
 
-    for test_datum in tqdm(test_data):
-        index = test_data.index(test_datum)
-        original = cv2.imread(test_image_files[index])
-        height, width = original.shape[:2]
+            for text_area in text_area_dataset:
+                x1, y1, w, h = text_area['x'], text_area['y'], text_area['width'], text_area['height']
+                x2, y2 = x1 + w, y1 + h
+                rect_truths.append(Rect(x1=x1, y1=y1, x2=x2, y2=y2))
 
-        rect_truths = []
-        text_area_dataset = Danbooru(test_ids[index]).get_text_area()
-        for text_area in text_area_dataset:
-            x1, y1, w, h = text_area['x'], text_area['y'], text_area['width'], text_area['height']
-            x2, y2 = x1 + w, y1 + h
-            rect_truths.append(Rect(x1=x1, y1=y1, x2=x2, y2=y2))
+            for datum in test_data:
+                y1, x1 = datum['topleft_pt']['y'], datum['topleft_pt']['x']
+                h, w = datum['height'], datum['width']
+                y2, x2 = y1 + h, x1 + w
 
-        for datum in filter(lambda x: x['is_text'] == 1, test_datum):
-            y1, x1 = datum['topleft_pt']['y'], datum['topleft_pt']['x']
-            h, w = datum['height'], datum['width']
-            y2, x2 = y1 + h, x1 + w
+                rect_test = Rect(x1=x1, y1=y1, x2=x2, y2=y2)
+                for rect_truth in rect_truths:
+                    if isRectMatched(rect_truth, rect_test, 0.5):
+                        matched_rect += 1
+                        break
 
-            rect_test = Rect(x1=x1, y1=y1, x2=x2, y2=y2)
-            for rect_truth in rect_truths:
-                if isRectMatched(rect_truth, rect_test, 0.5):
-                    matched_rect += 1
-                    break
-
-        no_detected_rect += len(list(filter(lambda x: x['is_text'] == 1, test_datum)))
-        no_rect_in_dataset += len(text_area_dataset)
+            no_detected_rect += len(test_data)
+            no_rect_in_dataset += len(text_area_dataset)
 
     recall = matched_rect / no_rect_in_dataset
     precision = matched_rect / no_detected_rect
@@ -92,8 +84,8 @@ def evaluate(test_ids_input=None, predicted_dir='../output/predicted/'):
     print('No. detected rect:', no_detected_rect)
     print('P: {} R: {} F: {}'.format(precision, recall, fmeasure))
 
-    return {'r': recall, 'p': precision, 'f': fmeasure}
+    return fmeasure
 
 
 if __name__ == '__main__':
-    fire.Fire(evaluate)
+    evaluate()

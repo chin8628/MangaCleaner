@@ -5,9 +5,9 @@ from modules.file_manager import load_dataset
 from modules.label_rect import label
 
 
-def draw_rect(id, dataset_path, file_type):
+def draw_rect(title, id, dataset_path, file_type):
     data = load_dataset(dataset_path)
-    src = cv2.imread('../../danbooru/resized/images/%s.jpg' % id)
+    src = cv2.imread('../../Manga109-small/images/%s/test/%s.jpg' % (title, id))
 
     if file_type == 'train':
         is_text_for_show = [1, 0]

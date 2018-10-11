@@ -2,12 +2,12 @@ from typing import List
 
 import cv2
 import numpy as np
+import math
 
 # Modules
 from modules.get_connected_components import get_connected_components
 from modules.get_letters import get_letters
 from modules.get_swt import get_swt
-from modules.get_words import get_words
 
 
 def text_detection(src: np.ndarray, expected_height: int = 1200) -> List[dict]:
@@ -30,8 +30,31 @@ def text_detection(src: np.ndarray, expected_height: int = 1200) -> List[dict]:
 
     swt = get_swt(edges, sobel_x, sobel_y, direction, magnitude, height, width)
     connected_components, label_map = get_connected_components(swt)
-    swt_values, heights, widths, diameters, topleft_pts = get_letters(swt, connected_components)
+    topleft_pts, heights, widths = get_letters(swt, connected_components)
 
-    words = get_words(swt_values, heights, widths, topleft_pts)
+    mask = np.zeros(src_gray.shape, np.uint8)
+    for index in range(0, len(topleft_pts)):
+        x1, y1 = topleft_pts[index][1], topleft_pts[index][0]
+        x2, y2 = topleft_pts[index][1] + widths[index], topleft_pts[index][0] + heights[index]
+        mask[y1:y2, x1:x2] = 1
 
-    return words
+    im2, contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    for cnt in contours:
+        x1, y1, w, h = cv2.boundingRect(cnt)
+        x2, y2 = x1 + w, y1 + h
+
+        if w < 5 or h < 5 or w > 60 or h > 60:
+            continue
+
+        margin = 3
+        diff = (max(h, w) - min(h, w)) / 2
+        if h < w:
+            y1, y2 = int(y1 - diff), int(y2 + diff)
+        elif w < h:
+            x1, x2 = int(x1 - diff), int(x2 + diff)
+
+        x1, y1 = x1-margin, y1-margin
+        x2, y2 = x2+margin, y2+margin
+        w, h = x2 - x1, y2 - y1
+
+        yield {'x': x1, 'y': y1, 'width': w, 'height': h}
