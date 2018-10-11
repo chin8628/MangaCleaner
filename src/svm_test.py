@@ -10,15 +10,17 @@ import itertools
 import json
 import os
 import logging
+import multiprocessing
 from text_detection import text_detection
 from modules.file_manager import load_dataset
+from modules.utils import chunks
 
 
-def main():
-    clf = joblib.load('./model.pkl')
+def test(model_name='model'):
+    clf = joblib.load('./model/%s.pkl' % model_name)
     img_dataset_dir = '../../Manga109-small/images/'
     purposed_region = '../output/test/'
-    output_dir = '../output/predicted/'
+    output_dir = '../output/predicted/%s/' % model_name
 
     for title in os.listdir(purposed_region):
         title_path = purposed_region + title
@@ -97,7 +99,6 @@ def main():
             index = 0
             for cnt in contours:
                 x, y, w, h = cv2.boundingRect(cnt)
-                # cv2.rectangle(src, (x, y), (x+w, y+h), (255, 0, 0), 2)
 
                 if w < 40 and h < 40:
                     continue
@@ -116,13 +117,9 @@ def main():
 
             json.dump(data, open(output_dir + title + "/" + page_id + '.json', 'w'))
 
-            # plt.imshow(src)
-            # plt.show()
-            # quit()
-
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     logging.getLogger(__name__)
 
-    main()
+    test()
