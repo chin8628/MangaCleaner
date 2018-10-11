@@ -9,53 +9,69 @@ from tqdm import tqdm
 from random import shuffle
 from sklearn.externals import joblib
 import matplotlib.pyplot as plt
+import multiprocessing
+import logging
 
-dataset_dir = '../output/connected_comp_window_manga109/'
 
-y_train, x_train = [], []
-true_feature, false_feature = [], []
+def train(c_param=None, gamma_param=None):
+    dataset_dir = '../output/connected_comp_window_manga109/'
 
-for title in os.listdir(dataset_dir):
-    title_true_features, title_false_features = [], []
+    y_train, x_train = [], []
+    true_feature, false_feature = [], []
 
-    for page in tqdm(os.listdir(dataset_dir + title)):
-        for slice_img in os.listdir(dataset_dir + title + '/' + page + '/true/'):
-            # print(dataset_dir + title + '/' + page + '/true/' + slice_img)
+    for title in os.listdir(dataset_dir):
+        title_true_features, title_false_features = [], []
 
-            image = cv2.imread(dataset_dir + title + '/' + page + '/true/' + slice_img, 0)
-            h, w = image.shape
-            fd = hog(image, pixels_per_cell=(h/10, w/10), cells_per_block=(2, 2), block_norm='L2')
+        for page in tqdm(os.listdir(dataset_dir + title)):
+            for slice_img in os.listdir(dataset_dir + title + '/' + page + '/true/'):
+                image = cv2.imread(dataset_dir + title + '/' + page + '/true/' + slice_img, 0)
+                h, w = image.shape
+                fd = hog(image, pixels_per_cell=(h/10, w/10), cells_per_block=(2, 2), block_norm='L2')
 
-            if len(fd) != 2916:
-                continue
+                if len(fd) != 2916:
+                    continue
 
-            title_true_features.append(fd)
+                title_true_features.append(fd)
 
-        for slice_img in os.listdir(dataset_dir + title + '/' + page + '/false/'):
-            image = cv2.imread(dataset_dir + title + '/' + page + '/false/' + slice_img, 0)
-            h, w = image.shape
-            fd = hog(image, pixels_per_cell=(h/10, w/10), cells_per_block=(2, 2), block_norm='L2')
+            for slice_img in os.listdir(dataset_dir + title + '/' + page + '/false/'):
+                image = cv2.imread(dataset_dir + title + '/' + page + '/false/' + slice_img, 0)
+                h, w = image.shape
+                fd = hog(image, pixels_per_cell=(h/10, w/10), cells_per_block=(2, 2), block_norm='L2')
 
-            if len(fd) != 2916:
-                continue
+                if len(fd) != 2916:
+                    continue
 
-            title_false_features.append(fd)
+                title_false_features.append(fd)
 
-    title_false_features = title_false_features[:len(title_true_features)]
+        title_false_features = title_false_features[:len(title_true_features)]
 
-    true_feature += title_true_features
-    false_feature += title_false_features
+        true_feature += title_true_features
+        false_feature += title_false_features
 
-x_train = true_feature + false_feature
-y_train = ([1] * len(true_feature)) + ([0] * len(false_feature))
+    x_train = true_feature + false_feature
+    y_train = ([1] * len(true_feature)) + ([0] * len(false_feature))
 
-print('no. true: %d, no. false: %d' % (len(true_feature), len(false_feature)))
-print('no. total feature: %d' % len(x_train))
+    print('no. true: %d, no. false: %d' % (len(true_feature), len(false_feature)))
+    print('no. total feature: %d' % len(x_train))
 
-clf = svm.SVC(cache_size=5000)
-clf.fit(x_train, y_train)
+    if c_param is None and gamma_param is None:
+        clf = svm.SVC(cache_size=5000)
+        clf.fit(x_train, y_train)
+        model_name = 'model'
+    else:
+        clf = svm.SVC(cache_size=5000, C=2**c_param, gamma=2**gamma_param)
+        clf.fit(x_train, y_train)
+        model_name = 'c_%d_g_%d' % (c_param * 100, gamma_param * 100)
 
-joblib.dump(clf, 'model.pkl')
+    joblib.dump(clf, './model/%s.pkl' % model_name)
 
-with open('trained_img_name.json', 'w') as fp:
-    json.dump(os.listdir(dataset_dir)[:128], fp)
+    print('saved', model_name)
+
+    return model_name
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger(__name__)
+
+    train()

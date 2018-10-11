@@ -1,9 +1,9 @@
 import os
 import cv2
-import fire
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import namedtuple
+import json
 
 # Modules
 from tqdm import tqdm
@@ -40,10 +40,9 @@ def isRectMatched(rect_truth: Rect, rect_test: Rect, threashold: float):
         return False
 
 
-def evaluate():
+def evaluate(predicted_dir='../output/predicted/'):
     matched_rect = 0
     no_rect_in_dataset, no_detected_rect = 0, 0
-    predicted_dir = '../output/predicted/'
 
     for title in os.listdir(predicted_dir):
         manga109 = Manga109(title)
@@ -85,8 +84,8 @@ def evaluate():
     print('No. detected rect:', no_detected_rect)
     print('P: {} R: {} F: {}'.format(precision, recall, fmeasure))
 
-    return {'r': recall, 'p': precision, 'f': fmeasure}
+    return fmeasure
 
 
 if __name__ == '__main__':
-    fire.Fire(evaluate)
+    evaluate()
