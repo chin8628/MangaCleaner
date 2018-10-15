@@ -40,7 +40,7 @@ def isRectMatched(rect_truth: Rect, rect_test: Rect, threashold: float):
         return False
 
 
-def evaluate(predicted_dir='../output/predicted/'):
+def evaluate(predicted_dir='../output/pure_swt/'):
     matched_rect = 0
     no_rect_in_dataset, no_detected_rect = 0, 0
 
