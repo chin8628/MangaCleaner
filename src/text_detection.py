@@ -8,6 +8,7 @@ import math
 from modules.get_connected_components import get_connected_components
 from modules.get_letters import get_letters
 from modules.get_swt import get_swt
+from modules.get_words import get_words
 
 
 def text_detection(src: np.ndarray, expected_height: int = 1200) -> List[dict]:

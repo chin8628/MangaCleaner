@@ -2,6 +2,7 @@ import logging
 import scipy.sparse
 import scipy.spatial
 import numpy as np
+import math
 
 
 def get_words(swts, heights, widths, topleft_pts):
