@@ -3,6 +3,11 @@ import numpy as np
 import logging
 
 
+import math
+import numpy as np
+import logging
+
+
 def get_swt(edges, sobel_x, sobel_y, direction, magnitude, height, width) -> np.ndarray:
     rays = []
     swt = np.full(edges.shape, np.Infinity)
@@ -46,7 +51,9 @@ def get_swt(edges, sobel_x, sobel_y, direction, magnitude, height, width) -> np.
 
                     # Difference between the direction of start edge and another edge
                     # IF difference is exceed 90degree THEN ignore this ray
-                    if abs(abs(round(np.degrees(direction[y, x])) - round(np.degrees(direction[cur_y, cur_x]))) - 180) > 60:
+                    diff = abs(abs(round(np.degrees(direction[y, x])) -
+                                   round(np.degrees(direction[cur_y, cur_x]))) - 180)
+                    if diff >= 60:
                         break
 
                     thickness = math.sqrt((cur_x - x) * (cur_x - x) + (cur_y - y) * (cur_y - y))

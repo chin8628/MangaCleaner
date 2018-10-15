@@ -3,6 +3,11 @@ import logging
 import numpy as np
 
 
+import logging
+
+import numpy as np
+
+
 def get_connected_components(swt: np.ndarray):
     class Label(object):
         def __init__(self, value):
@@ -52,7 +57,7 @@ def get_connected_components(swt: np.ndarray):
     label_map = np.zeros(shape=swt.shape, dtype=np.uint16)
     next_label = 1
 
-    swt_ratio_threshold = 3.0
+    swt_ratio_threshold = 3
 
     for y in range(swt.shape[0]):
         for x in range(swt.shape[1]):
@@ -100,13 +105,8 @@ def get_connected_components(swt: np.ndarray):
             try:
                 layer = layers[common_label]
             except KeyError:
-                try:
-                    layers[common_label] = np.zeros(shape=swt.shape, dtype=np.uint8)
-                    layer = layers[common_label]
-                except MemoryError:
-                    print('Memmory Error')
-                    print(len(layers))
-                    quit()
+                layers[common_label] = np.zeros(shape=swt.shape, dtype=np.uint8)
+                layer = layers[common_label]
 
             layer[y, x] = 1
 
