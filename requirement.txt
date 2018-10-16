@@ -1,3 +1,5 @@
+absl-py==0.5.0
+astor==0.7.1
 astroid==2.0.4
 autopep8==1.3.5
 backcall==0.1.0
@@ -9,6 +11,9 @@ dask==0.19.2
 decorator==4.3.0
 entrypoints==0.2.3
 fire==0.1.3
+gast==0.2.0
+grpcio==1.15.0
+h5py==2.8.0
 html5lib==1.0.1
 ipykernel==4.8.2
 ipython==6.5.0
@@ -22,8 +27,12 @@ jupyter==1.0.0
 jupyter-client==5.2.3
 jupyter-console==5.2.0
 jupyter-core==4.4.0
+Keras==2.2.4
+Keras-Applications==1.0.6
+Keras-Preprocessing==1.0.5
 kiwisolver==1.0.1
 lazy-object-proxy==1.3.1
+Markdown==3.0.1
 MarkupSafe==1.0
 matplotlib==2.2.3
 mccabe==0.6.1
@@ -43,6 +52,7 @@ pickleshare==0.7.4
 Pillow==5.2.0
 prometheus-client==0.3.1
 prompt-toolkit==1.0.15
+protobuf==3.6.1
 pycodestyle==2.4.0
 Pygments==2.2.0
 pylint==2.1.1
@@ -51,6 +61,7 @@ python-dateutil==2.7.3
 pytz==2018.5
 PyWavelets==1.0.0
 pywinpty==0.5.4
+PyYAML==3.13
 pyzmq==17.1.2
 qtconsole==4.4.0
 rope==0.11.0
@@ -62,13 +73,19 @@ simplegeneric==0.8.1
 six==1.11.0
 snowballstemmer==1.2.1
 sympy==1.2
+tensorboard==1.11.0
+tensorflow==1.11.0
+termcolor==1.1.0
 terminado==0.8.1
 testpath==0.3.1
 toolz==0.9.0
 tornado==5.1
 tqdm==4.24.0
 traitlets==4.3.2
+typed-ast==1.1.0
+virtualenv==15.1.0
 wcwidth==0.1.7
 webencodings==0.5.1
+Werkzeug==0.14.1
 widgetsnbextension==3.4.0
 wrapt==1.10.11
