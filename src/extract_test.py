@@ -13,7 +13,7 @@ sys.setrecursionlimit(10000)
 def testing_extract():
     image_dir = '../../Manga109-small/images/'
     output_dir = '../output/test/'
-    image_dir_list = os.listdir(image_dir)[5:]
+    image_dir_list = os.listdir(image_dir)
 
     for title in image_dir_list:
         img_test_dir = image_dir + title + '/test/'

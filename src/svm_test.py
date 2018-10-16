@@ -100,10 +100,7 @@ def test(model_name='model'):
             for cnt in contours:
                 x, y, w, h = cv2.boundingRect(cnt)
 
-                if w < 40 and h < 40:
-                    continue
-
-                if w * h < 40 * 100:
+                if w * h < 30 * 85:
                     continue
 
                 data.append({
